@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GLYPHS</title>
+  <style>
+    :root {
+      --pri: #2563EB;
+      --pri-accent: #60A5FA;
+      --outline: #4B5563;
+      --tile-bg: #E5E7EB;
+      --tile-text: #1F2937;
+    }
+
+    body.light {
+      --bg: #7DD3FC; 
+      --sky-glow: rgba(255, 255, 255, 0.4);
+      --grass-top: #4ADE80; 
+      --grass-front: #166534; 
+      --hills: #047857;
+      --surf: rgba(255, 255, 255, 0.75); 
+      --txt: #1A1A1B;
+      --c-dl: rgba(0, 85, 255, 0.2); 
+      --c-tl: rgba(0, 85, 255, 0.4); 
+      --c-dw: rgba(147, 51, 234, 0.3); 
+      --c-tw: rgba(236, 72, 153, 0.3); 
+    }
+
+    body.dark {
+      --bg: #111827; 
+      --sky-glow: rgba(0, 0, 0, 0.6);
+      --grass-top: #166534; 
+      --grass-front: #052e16; 
+      --hills: #044e3b;
+      --surf: rgba(20, 24, 39, 0.85); 
+      --txt: #F9FAFB;
+      --c-dl: rgba(0, 85, 255, 0.3); 
+      --c-tl: rgba(0, 85, 255, 0.6); 
+      --c-dw: rgba(147, 51, 234, 0.4); 
+      --c-tw: rgba(236, 72, 153, 0.4); 
+    }
+
+    body {
+      margin: 0; padding: 0; color: var(--txt);
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh; position: relative; overflow-x: hidden;
+      transition: color 0.3s ease;
+    }
+
+    /* --- 8-Bit 3D Meadow Background --- */
+    #meadow-background {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: var(--bg); z-index: -10; transition: background 0.3s ease;
+    }
+    .sky-glow { position: absolute; top: 0; left: 0; width: 100%; height: 50%; background: radial-gradient(circle at top center, var(--sky-glow) 0%, transparent 70%); transition: background 0.3s ease; }
+    .celestial-body { position: absolute; top: 80px; left: calc(50% + 200px); width: 50px; height: 50px; border-radius: 50%; transition: all 0.5s ease; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
+    body.light .celestial-body { background-color: #FBB03B; box-shadow: 0 0 40px #FBB03B, 0 0 0 10px rgba(251, 176, 59, 0.3); }
+    body.dark .celestial-body { background-color: #94A3B8; left: calc(50% - 250px); top: 120px; box-shadow: -10px -10px 0 #111827; }
+    .hills { position: absolute; bottom: 80px; left: 0; width: 100%; height: 200px; background: linear-gradient(135deg, transparent 40px, var(--hills) 40px, var(--hills) 80px, transparent 80px) repeat-x; background-size: 160px 100%; transition: background 0.3s ease; }
+    .grass-field { position: absolute; bottom: 0; left: 0; width: 100%; height: 120px; background: repeating-linear-gradient(45deg, var(--grass-front), var(--grass-front) 10px, #000 10px, #000 20px); transition: background 0.3s ease; }
+    .grass-field::before { content: ''; position: absolute; top: -15px; left: 0; width: 100%; height: 15px; background: var(--grass-top); clip-path: polygon(0% 100%, 5% 0%, 10% 100%, 15% 0%, 20% 100%, 25% 0%, 30% 100%, 35% 0%, 40% 100%, 45% 0%, 50% 100%, 55% 0%, 60% 100%, 65% 0%, 70% 100%, 75% 0%, 80% 100%, 85% 0%, 90% 100%, 95% 0%, 100% 100%); transition: background 0.3s ease; }
+
+    /* --- Header & Auth UI --- */
+    header { width: 100%; padding: 15px 25px; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; border-bottom: 1px solid var(--outline); position: sticky; top: 0; zIndex: 50; }
+    .player-card { display: flex; align-items: center; gap: 12px; }
+    #player-avatar { width: 42px; height: 42px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 3px solid #60A5FA; }
+    #player-name { font-weight: bold; font-size: 14px; color: #fff; }
+    #player-handle { font-size: 11px; color: #D1D5DB; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+    .theme-toggle { background: var(--pri); color: #fff; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 18px; margin-right: 15px; padding: 0; cursor: pointer; }
+
+    /* --- Main Game Board --- */
+    .game-container { 
+      display: flex; flex-direction: column; align-items: center; 
+      width: 100%; max-width: 600px; padding: 20px; box-sizing: border-box; margin-top: 40px; 
+    }
+
+    #game-board {
+      display: grid;
+      grid-template-columns: repeat(15, 1fr);
+      grid-template-rows: repeat(15, 1fr);
+      gap: 1px; /* The crisp 1px grid line */
+      width: 100%; aspect-ratio: 1 / 1;
+      background-color: var(--outline); /* The grid lines themselves */
+      border: 2px solid var(--outline);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+      margin-bottom: 25px;
+    }
+
+    .square { 
+      background-color: var(--surf); 
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      position: relative; 
+      display: flex; align-items: center; justify-content: center; 
+      transition: background-color 0.2s ease;
+    }
+
+    .square.DL { background-color: var(--c-dl); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); } 
+    .square.TL { background-color: var(--c-tl); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); } 
+    .square.DW { background-color: var(--c-dw); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); } 
+    .square.TW { background-color: var(--c-tw); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); } 
+    .square.center { background-color: var(--c-tl); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+
+    .square[data-type]::after { 
+      content: attr(data-type); 
+      font-size: 8px; font-weight: 800; color: var(--txt); opacity: 0.4; 
+      position: absolute; z-index: 0; pointer-events: none;
+    }
+
+    /* --- Tiles & Physics --- */
+    .tile { 
+      width: 90%; height: 90%; 
+      background-color: var(--tile-bg); color: var(--tile-text); 
+      border-radius: 6px; display: flex; align-items: center; justify-content: center; 
+      font-size: calc(600px / 15 * 0.5); font-weight: bold; 
+      box-shadow: 0 3px 0 #9ca3af, inset 0 1px 0 #fff; cursor: grab; z-index: 10; 
+      touch-action: none; /* Prevents mobile scrolling when dragging */
+      user-select: none; /* Prevents text highlighting */
+    }
+    .tile:active { cursor: grabbing; }
+    .tile.dragging { opacity: 0.8; transform: scale(1.1); box-shadow: 0 15px 30px rgba(0,0,0,0.5); }
+    .tile .value { font-size: 8px; position: absolute; bottom: 2px; right: 3px; opacity: 0.7; pointer-events: none; }
+
+    /* --- Player Rack & Action Bar --- */
+    .player-rack-container { 
+      width: 100%; background: var(--surf); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--outline); border-radius: 20px; padding: 15px; box-sizing: border-box; 
+      display: flex; justify-content: center; align-items: center; box-shadow: inset 0 2px 10px rgba(0,0,0,0.1); 
+      transition: background 0.3s ease; 
+    }
+    #player-rack { display: flex; gap: 10px; height: 60px; align-items: center; width: 100%; justify-content: center; }
+    #player-rack .tile { width: 50px; height: 50px; font-size: 28px; }
+
+    .action-bar { display: flex; gap: 15px; margin-top: 25px; width: 100%; }
+    button.action-btn { flex: 1; background: var(--surf); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); color: var(--txt); border: 1px solid var(--outline); padding: 12px 20px; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: background 0.3s ease, color 0.3s ease; }
+    button.action-btn:hover { background: rgba(255,255,255,0.2); }
+    button.primary { background: var(--pri); color: #fff; border-color: var(--pri); }
+    button.primary:hover { background: #1d4ed8; }
+  </style>
+</head>
+<body class="light">
+
+  <div id="meadow-background">
+    <div class="sky-glow"></div>
+    <div class="hills"></div>
+    <div class="grass-field"></div>
+    <div class="celestial-body"></div>
+  </div>
+
+  <header>
+    <div style="display: flex; align-items: center;">
+      <button class="theme-toggle" onclick="toggleMode()">☀️</button>
+      <h1 style="margin: 0; font-size: 22px; font-weight: 900; letter-spacing: 3px; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">GLYPHS</h1>
+    </div>
+    <div class="player-card" id="auth-status">
+      <div style="text-align: right;">
+        <div id="player-name">Connecting...</div>
+        <div id="player-handle">Waiting for Hub</div>
+      </div>
+      <img id="player-avatar" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="avatar" />
+    </div>
+  </header>
+
+  <div class="game-container">
+    <div id="game-board"></div>
+    
+    <div class="player-rack-container">
+      <div id="player-rack">
+        <div class="tile">A<span class="value">1</span></div>
+        <div class="tile">T<span class="value">1</span></div>
+        <div class="tile">P<span class="value">3</span></div>
+        <div class="tile">R<span class="value">1</span></div>
+        <div class="tile">O<span class="value">1</span></div>
+        <div class="tile">T<span class="value">1</span></div>
+        <div class="tile">O<span class="value">1</span></div>
+      </div>
+    </div>
+    
+    <div class="action-bar">
+      <button class="action-btn" onclick="recallTiles()">Recall</button>
+      <button class="action-btn">Swap</button>
+      <button class="action-btn primary" onclick="simulateWin()">Play "ATPROTO" (84)</button>
+    </div>
+  </div>
+
+  <script>
+    let playerDid = null;
+
+    // --- Board Generation ---
+    const dl = [3,11, 36,38, 45,52,59, 92,96,98,102, 108,116, 122,126,128,132, 165,172,179, 186,188, 213,221];
+    const tl = [20,24, 76,80,84,88, 136,140,144,148, 200,204];
+    const dw = [16,28, 32,42, 48,56, 64,70, 154,160, 168,176, 182,192, 196,208];
+    const tw = [0,7,14, 105,119, 210,217,224];
+
+    function drawBoard() {
+      const board = document.getElementById('game-board');
+      for (let i = 0; i < 225; i++) {
+        const sq = document.createElement('div'); 
+        sq.className = 'square';
+        
+        if (dl.includes(i)) { sq.classList.add('DL'); sq.setAttribute('data-type', 'DL'); }
+        if (tl.includes(i)) { sq.classList.add('TL'); sq.setAttribute('data-type', 'TL'); }
+        if (dw.includes(i)) { sq.classList.add('DW'); sq.setAttribute('data-type', 'DW'); }
+        if (tw.includes(i)) { sq.classList.add('TW'); sq.setAttribute('data-type', 'TW'); }
+        if (i === 112) { sq.classList.add('center'); }
+        
+        board.appendChild(sq);
+      }
+      
+      initUniversalDragAndDrop();
+    }
+
+    // --- Universal Touch & Mouse Drag Logic ---
+    function initUniversalDragAndDrop() {
+      const tiles = document.querySelectorAll('.tile');
+      
+      tiles.forEach(tile => {
+        tile.addEventListener('pointerdown', function(e) {
+          e.preventDefault();
+          
+          const activeTile = this;
+          const originalParent = activeTile.parentNode;
+          
+          const rect = activeTile.getBoundingClientRect();
+          const offsetX = e.clientX - rect.left;
+          const offsetY = e.clientY - rect.top;
+
+          activeTile.style.position = 'fixed';
+          activeTile.style.zIndex = '1000';
+          activeTile.style.width = rect.width + 'px';
+          activeTile.style.height = rect.height + 'px';
+          activeTile.style.margin = '0';
+          activeTile.classList.add('dragging');
+          
+          document.body.appendChild(activeTile);
+
+          function moveAt(pageX, pageY) {
+            activeTile.style.left = pageX - offsetX + 'px';
+            activeTile.style.top = pageY - offsetY + 'px';
+          }
+          moveAt(e.pageX, e.pageY);
+
+          function onPointerMove(e) {
+            moveAt(e.pageX, e.pageY);
+          }
+          document.addEventListener('pointermove', onPointerMove);
+
+          document.addEventListener('pointerup', function onPointerUp(e) {
+            document.removeEventListener('pointermove', onPointerMove);
+            document.removeEventListener('pointerup', onPointerUp);
+
+            activeTile.style.visibility = 'hidden';
+            const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
+            activeTile.style.visibility = 'visible';
+
+            activeTile.style.position = '';
+            activeTile.style.left = '';
+            activeTile.style.top = '';
+            activeTile.style.zIndex = '';
+            activeTile.style.width = '90%';
+            activeTile.style.height = '90%';
+            activeTile.classList.remove('dragging');
+
+            let dropZone = elemBelow ? elemBelow.closest('.square, #player-rack') : null;
+
+            if (dropZone) {
+              if (dropZone.id === 'player-rack') {
+                dropZone.appendChild(activeTile);
+                // Reset size for rack
+                activeTile.style.width = '50px';
+                activeTile.style.height = '50px';
+              } else if (dropZone.classList.contains('square') && !dropZone.querySelector('.tile')) {
+                dropZone.appendChild(activeTile);
+                // Reset size for board
+                activeTile.style.width = '90%';
+                activeTile.style.height = '90%';
+              } else {
+                originalParent.appendChild(activeTile);
+              }
+            } else {
+              originalParent.appendChild(activeTile);
+            }
+          });
+        });
+      });
+    }
+
+    // --- Recall Button ---
+    function recallTiles() {
+      const rack = document.getElementById('player-rack');
+      const boardTiles = document.querySelectorAll('.square .tile');
+      boardTiles.forEach(tile => {
+        rack.appendChild(tile);
+        tile.style.width = '50px';
+        tile.style.height = '50px';
+      });
+    }
+
+    // --- Mode Logic ---
+    function toggleMode() {
+      const b = document.body;
+      const toggle = document.querySelector('.theme-toggle');
+      if (b.classList.contains('light')) {
+        b.classList.remove('light'); b.classList.add('dark');
+        toggle.innerText = '🌙'; localStorage.setItem('glyphs-mode', 'dark');
+      } else {
+        b.classList.remove('dark'); b.classList.add('light');
+        toggle.innerText = '☀️'; localStorage.setItem('glyphs-mode', 'light');
+      }
+    }
+
+    // --- Platform Bridge ---
+    window.addEventListener('message', (event) => {
+      const { type, payload } = event.data;
+      if (type === 'HUB_AUTH_SUCCESS') {
+        document.getElementById('player-name').innerText = payload.displayName || payload.handle;
+        document.getElementById('player-handle').innerText = '@' + payload.handle;
+        if (payload.avatar) document.getElementById('player-avatar').src = payload.avatar;
+        playerDid = payload.did; 
+      }
+    });
+
+    window.onload = () => {
+      const storedMode = localStorage.getItem('glyphs-mode');
+      if (storedMode) {
+        document.body.className = storedMode;
+        document.querySelector('.theme-toggle').innerText = storedMode === 'dark' ? '🌙' : '☀️';
+      }
+      drawBoard();
+      window.parent.postMessage({ type: 'GAME_READY' }, '*');
+    };
+
+    function simulateWin() {
+      if (!playerDid) {
+        alert("Wait for the Quips Hub to connect your profile!");
+        return;
+      }
+      window.parent.postMessage({ type: 'POST_SCORE', payload: { score: 84, word: "ATPROTO" } }, '*');
+    }
+  </script>
+</body>
+</html>
+

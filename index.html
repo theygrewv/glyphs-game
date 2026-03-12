@@ -10,75 +10,61 @@
             --grid-line: rgba(255, 255, 255, 0.15);
             --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F; --dd: #FFD700;
         }
-        
-        /* Box-sizing reset to keep padding from growing elements */
         * { box-sizing: border-box; }
-
         body { 
             background: var(--bg); color: #fff; margin: 0; font-family: 'Inter', sans-serif; 
             display: flex; flex-direction: column; align-items: center; 
-            justify-content: space-between; /* Evenly spaces Header, Grid, and Rack */
-            height: 100vh; height: -webkit-fill-available;
+            justify-content: space-between; height: 100vh;
             padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
             overflow: hidden; touch-action: none; 
         }
-
-        header { 
-            width: 100%; padding: 10px; text-align: center; 
-            letter-spacing: 5px; font-weight: 900; border-bottom: 1px solid #111; 
-            font-size: 0.9rem; flex-shrink: 0;
-        }
+        header { width: 100%; padding: 10px; text-align: center; letter-spacing: 5px; font-weight: 900; border-bottom: 1px solid #111; font-size: 0.9rem; }
         
-        /* Scaled down grid to ensure vertical clearance */
         .grid { 
             display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); 
-            width: 85vw; max-width: 400px; aspect-ratio: 1/1; 
+            width: 88vw; max-width: 420px; aspect-ratio: 1/1; 
             background: var(--grid-line); gap: 1px; border: 1px solid var(--grid-line);
-            flex-shrink: 0;
         }
-        
-        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 900; }
+        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 900; position: relative; }
         
         /* Board Glows */
-        .s { background: #fff; color: #000; box-shadow: 0 0 15px #fff; border-radius: 2px; font-size: 12px; z-index: 2; }
+        .s { background: #fff; color: #000; box-shadow: 0 0 15px #fff; border-radius: 2px; font-size: 12px; z-index: 1; }
         .dl { color: var(--dl); box-shadow: inset 0 0 8px var(--dl); }
         .tl { color: var(--tl); box-shadow: inset 0 0 8px var(--tl); }
         .dw { color: var(--dw); box-shadow: inset 0 0 8px var(--dw); }
         .tw { color: var(--tw); box-shadow: inset 0 0 8px var(--tw); }
-        .dd { color: var(--dd); box-shadow: inset 0 0 12px var(--dd), 0 0 5px rgba(255,215,0,0.3); border: 1px solid var(--dd); font-size: 9px; z-index: 1; }
+        .dd { color: var(--dd); box-shadow: inset 0 0 12px var(--dd); border: 1px solid var(--dd); font-size: 9px; }
 
-        /* SCALED RACK FOR PIXEL 9 */
-        .rack { 
-            display: flex; gap: 5px; padding: 20px 10px; 
-            flex-wrap: nowrap; justify-content: center; 
-            width: 100%; flex-shrink: 0;
-        }
+        .rack { display: flex; gap: 8px; padding: 20px 10px; width: 100%; justify-content: center; min-height: 80px; }
 
         .tile {
-            width: 12vw; height: 12vw; max-width: 42px; max-height: 42px;
+            width: 42px; height: 42px;
             background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(210,210,210,0.8) 100%);
             backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
             border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.5);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.6), inset 0 1px 1px #fff;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.6);
             display: flex; align-items: center; justify-content: center;
-            color: #000; font-size: 18px; font-weight: 900; position: relative;
-            cursor: pointer;
+            color: #000; font-size: 20px; font-weight: 900; position: absolute;
+            cursor: grab; z-index: 10; user-select: none;
         }
-
-        .val { position: absolute; bottom: 2px; right: 4px; font-size: 7px; font-weight: 800; color: rgba(0,0,0,0.5); }
-        .wild { color: #E0115F; }
+        .tile.on-board { position: relative; width: 100%; height: 100%; border-radius: 4px; font-size: 14px; box-shadow: none; }
+        .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; color: rgba(0,0,0,0.5); }
+        .dragging { opacity: 0.8; transform: scale(1.1); z-index: 100; pointer-events: none; }
     </style>
 </head>
 <body>
-    <header>BLITZ CROSS</header>
+    <header id="status">BLITZ CROSS</header>
     <div class="grid" id="grid"></div>
     <div class="rack" id="rack"></div>
 
     <script>
         const grid = document.getElementById('grid');
+        const rack = document.getElementById('rack');
+        const status = document.getElementById('status');
+        let centerOccupied = false;
+
         const layout = {
-            60: { t: '✦', c: 's' },
-            0: { t: 'TL', c: 'tl' }, 10: { t: 'TL', c: 'tl' }, 24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' },
+            60: { t: '✦', c: 's' }, 0: { t: 'TL', c: 'tl' }, 10: { t: 'TL', c: 'tl' }, 24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' },
             90: { t: 'TL', c: 'tl' }, 96: { t: 'TL', c: 'tl' }, 110: { t: 'TL', c: 'tl' }, 120: { t: 'TL', c: 'tl' },
             3: { t: 'TW', c: 'tw' }, 7: { t: 'TW', c: 'tw' }, 33: { t: 'TW', c: 'tw' }, 43: { t: 'TW', c: 'tw' },
             77: { t: 'TW', c: 'tw' }, 87: { t: 'TW', c: 'tw' }, 113: { t: 'TW', c: 'tw' }, 117: { t: 'TW', c: 'tw' },
@@ -93,47 +79,100 @@
         for (let i = 0; i < 121; i++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
+            cell.dataset.index = i;
             if (layout[i]) { cell.innerText = layout[i].t; cell.classList.add(layout[i].c); }
             grid.appendChild(cell);
         }
 
         const distribution = [
-            {l: 'E', v: 1, q: 10}, {l: 'A', v: 1, q: 8}, {l: 'I', v: 1, q: 7}, {l: 'O', v: 1, q: 7},
-            {l: 'N', v: 1, q: 5}, {l: 'R', v: 1, q: 5}, {l: 'T', v: 1, q: 5}, {l: 'L', v: 1, q: 4},
-            {l: 'S', v: 1, q: 4}, {l: 'D', v: 2, q: 4}, {l: 'U', v: 2, q: 4}, {l: 'G', v: 2, q: 3},
-            {l: 'H', v: 3, q: 2}, {l: 'M', v: 3, q: 2}, {l: 'Y', v: 3, q: 2}, {l: 'B', v: 4, q: 2},
-            {l: 'C', v: 4, q: 2}, {l: 'F', v: 4, q: 2}, {l: 'P', v: 4, q: 2}, {l: 'W', v: 4, q: 2},
-            {l: 'K', v: 5, q: 1}, {l: 'V', v: 5, q: 2}, {l: 'J', v: 8, q: 1}, {l: 'X', v: 8, q: 1},
-            {l: 'Q', v: 10, q: 1}, {l: 'Z', v: 10, q: 1}, {l: '?', v: 0, q: 2}
+            {l:'E',v:1,q:10},{l:'A',v:1,q:8},{l:'I',v:1,q:7},{l:'O',v:1,q:7},{l:'N',v:1,q:5},{l:'R',v:1,q:5},{l:'T',v:1,q:5},{l:'L',v:1,q:4},
+            {l:'S',v:1,q:4},{l:'D',v:2,q:4},{l:'U',v:2,q:4},{l:'G',v:2,q:3},{l:'H',v:3,q:2},{l:'M',v:3,q:2},{l:'Y',v:3,q:2},{l:'B',v:4,q:2},
+            {l:'C',v:4,q:2},{l:'F',v:4,q:2},{l:'P',v:4,q:2},{l:'W',v:4,q:2},{l:'K',v:5,q:1},{l:'V',v:5,q:2},{l:'J',v:8,q:1},{l:'X',v:8,q:1},
+            {l:'Q',v:10,q:1},{l:'Z',v:10,q:1},{l:'?',v:0,q:2}
         ];
 
         let bag = [];
-        distribution.forEach(item => {
-            for(let i=0; i<item.q; i++) bag.push({l: item.l, v: item.v});
-        });
+        distribution.forEach(item => { for(let i=0; i<item.q; i++) bag.push({...item}); });
         bag.sort(() => Math.random() - 0.5);
 
-        function createTile(data) {
-            const t = document.createElement('div');
-            t.className = 'tile';
-            t.innerHTML = `<span class="letter">${data.l === '?' ? '' : data.l}</span><span class="val">${data.v}</span>`;
-            t.onclick = () => {
-                if (data.l === '?') {
-                    let choice = prompt("Enter a letter for Wild Card:");
-                    if (choice && choice.length === 1) {
-                        t.querySelector('.letter').innerText = choice.toUpperCase();
-                        t.querySelector('.letter').classList.add('wild');
-                        t.querySelector('.val').innerText = '2';
-                    }
-                }
-            };
-            return t;
+        function initRack() {
+            for(let i=0; i<7; i++) {
+                const data = bag.pop();
+                const t = document.createElement('div');
+                t.className = 'tile';
+                t.innerHTML = `<span>${data.l==='?'?'':data.l}</span><span class="val">${data.v}</span>`;
+                t.dataset.letter = data.l;
+                t.dataset.value = data.v;
+                
+                // Set initial rack position
+                t.style.left = `${i * 50 + (window.innerWidth/2 - 175)}px`;
+                t.style.bottom = `40px`;
+                
+                addDragListeners(t);
+                document.body.appendChild(t);
+            }
         }
 
-        for(let i=0; i<7; i++) {
-            const data = bag.pop();
-            document.getElementById('rack').appendChild(createTile(data));
+        function addDragListeners(el) {
+            let offsetX, offsetY;
+            
+            const onStart = (e) => {
+                const touch = e.type === 'touchstart' ? e.touches[0] : e;
+                offsetX = touch.clientX - el.getBoundingClientRect().left;
+                offsetY = touch.clientY - el.getBoundingClientRect().top;
+                el.classList.add('dragging');
+                
+                if(el.dataset.letter === '?') {
+                    let c = prompt("Wild Card Letter:");
+                    if(c) { el.querySelector('span').innerText = c.toUpperCase(); el.dataset.value = 2; el.querySelector('.val').innerText = 2; }
+                }
+            };
+
+            const onMove = (e) => {
+                if (!el.classList.contains('dragging')) return;
+                const touch = e.type === 'touchmove' ? e.touches[0] : e;
+                el.style.left = `${touch.clientX - offsetX}px`;
+                el.style.top = `${touch.clientY - offsetY}px`;
+                el.style.bottom = 'auto';
+            };
+
+            const onEnd = (e) => {
+                el.classList.remove('dragging');
+                const rect = el.getBoundingClientRect();
+                const centerX = rect.left + rect.width/2;
+                const centerY = rect.top + rect.height/2;
+                
+                el.style.display = 'none';
+                const target = document.elementFromPoint(centerX, centerY);
+                el.style.display = 'flex';
+
+                const cell = target?.closest('.cell');
+                if (cell && !cell.querySelector('.tile')) {
+                    el.classList.add('on-board');
+                    el.style.left = '0'; el.style.top = '0'; el.style.position = 'relative';
+                    cell.appendChild(el);
+                    
+                    if(cell.dataset.index == "60") {
+                        centerOccupied = true;
+                        status.innerText = "CENTER COVERED - PLAY ON";
+                    }
+                } else {
+                    // Return to rack if missed
+                    el.classList.remove('on-board');
+                    el.style.position = 'absolute';
+                    el.style.top = 'auto'; el.style.bottom = '40px';
+                }
+            };
+
+            el.addEventListener('mousedown', onStart);
+            el.addEventListener('touchstart', onStart);
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('touchmove', onMove);
+            el.addEventListener('mouseup', onEnd);
+            el.addEventListener('touchend', onEnd);
         }
+
+        initRack();
     </script>
 </body>
 </html>

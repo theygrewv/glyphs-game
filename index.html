@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Blitz Cross: Frosted Edition</title>
     <style>
         :root {
@@ -10,49 +10,63 @@
             --grid-line: rgba(255, 255, 255, 0.15);
             --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F; --dd: #FFD700;
         }
+        
+        /* Box-sizing reset to keep padding from growing elements */
+        * { box-sizing: border-box; }
+
         body { 
             background: var(--bg); color: #fff; margin: 0; font-family: 'Inter', sans-serif; 
-            display: flex; flex-direction: column; align-items: center; min-height: 100vh; 
+            display: flex; flex-direction: column; align-items: center; 
+            justify-content: space-between; /* Evenly spaces Header, Grid, and Rack */
+            height: 100vh; height: -webkit-fill-available;
+            padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
             overflow: hidden; touch-action: none; 
         }
-        header { width: 100%; padding: 10px; text-align: center; letter-spacing: 5px; font-weight: 900; border-bottom: 1px solid #111; font-size: 1rem; }
+
+        header { 
+            width: 100%; padding: 10px; text-align: center; 
+            letter-spacing: 5px; font-weight: 900; border-bottom: 1px solid #111; 
+            font-size: 0.9rem; flex-shrink: 0;
+        }
         
+        /* Scaled down grid to ensure vertical clearance */
         .grid { 
             display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); 
-            width: 90vw; max-width: 440px; aspect-ratio: 1/1; 
-            background: var(--grid-line); gap: 1px; border: 1px solid var(--grid-line); margin-top: 10px;
+            width: 85vw; max-width: 400px; aspect-ratio: 1/1; 
+            background: var(--grid-line); gap: 1px; border: 1px solid var(--grid-line);
+            flex-shrink: 0;
         }
-        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 900; }
+        
+        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 900; }
         
         /* Board Glows */
-        .s { background: #fff; color: #000; box-shadow: 0 0 20px #fff; border-radius: 2px; font-size: 14px; z-index: 2; }
-        .dl { color: var(--dl); box-shadow: inset 0 0 10px var(--dl); }
-        .tl { color: var(--tl); box-shadow: inset 0 0 10px var(--tl); }
-        .dw { color: var(--dw); box-shadow: inset 0 0 10px var(--dw); }
-        .tw { color: var(--tw); box-shadow: inset 0 0 10px var(--tw); }
-        .dd { color: var(--dd); box-shadow: inset 0 0 15px var(--dd), 0 0 8px rgba(255,215,0,0.3); border: 1px solid var(--dd); font-size: 10px; z-index: 1; }
+        .s { background: #fff; color: #000; box-shadow: 0 0 15px #fff; border-radius: 2px; font-size: 12px; z-index: 2; }
+        .dl { color: var(--dl); box-shadow: inset 0 0 8px var(--dl); }
+        .tl { color: var(--tl); box-shadow: inset 0 0 8px var(--tl); }
+        .dw { color: var(--dw); box-shadow: inset 0 0 8px var(--dw); }
+        .tw { color: var(--tw); box-shadow: inset 0 0 8px var(--tw); }
+        .dd { color: var(--dd); box-shadow: inset 0 0 12px var(--dd), 0 0 5px rgba(255,215,0,0.3); border: 1px solid var(--dd); font-size: 9px; z-index: 1; }
 
-        /* SCALED FROSTED TILES */
+        /* SCALED RACK FOR PIXEL 9 */
         .rack { 
-            margin-top: auto; margin-bottom: 25px; 
-            display: flex; gap: 6px; padding: 10px; 
-            flex-wrap: wrap; justify-content: center; width: 100%;
+            display: flex; gap: 5px; padding: 20px 10px; 
+            flex-wrap: nowrap; justify-content: center; 
+            width: 100%; flex-shrink: 0;
         }
+
         .tile {
-            width: 40px; height: 40px; /* Reduced size to prevent screen overflow */
+            width: 12vw; height: 12vw; max-width: 42px; max-height: 42px;
             background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(210,210,210,0.8) 100%);
             backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.5);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.6), inset 0 1px 2px #fff;
+            border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.6), inset 0 1px 1px #fff;
             display: flex; align-items: center; justify-content: center;
-            color: #000; font-size: 20px; font-weight: 900; position: relative;
-            cursor: pointer; transition: transform 0.1s;
+            color: #000; font-size: 18px; font-weight: 900; position: relative;
+            cursor: pointer;
         }
-        .tile:active { transform: scale(0.95); }
-        .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; font-weight: 800; color: rgba(0,0,0,0.5); }
-        
-        /* Wild Card Styling */
-        .wild { color: #E0115F; } /* Ruby Red text for Wild letters */
+
+        .val { position: absolute; bottom: 2px; right: 4px; font-size: 7px; font-weight: 800; color: rgba(0,0,0,0.5); }
+        .wild { color: #E0115F; }
     </style>
 </head>
 <body>
@@ -62,7 +76,6 @@
 
     <script>
         const grid = document.getElementById('grid');
-        
         const layout = {
             60: { t: '✦', c: 's' },
             0: { t: 'TL', c: 'tl' }, 10: { t: 'TL', c: 'tl' }, 24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' },
@@ -91,29 +104,26 @@
             {l: 'H', v: 3, q: 2}, {l: 'M', v: 3, q: 2}, {l: 'Y', v: 3, q: 2}, {l: 'B', v: 4, q: 2},
             {l: 'C', v: 4, q: 2}, {l: 'F', v: 4, q: 2}, {l: 'P', v: 4, q: 2}, {l: 'W', v: 4, q: 2},
             {l: 'K', v: 5, q: 1}, {l: 'V', v: 5, q: 2}, {l: 'J', v: 8, q: 1}, {l: 'X', v: 8, q: 1},
-            {l: 'Q', v: 10, q: 1}, {l: 'Z', v: 10, q: 1}, {l: '?', v: 0, q: 2} // ? used for Blank
+            {l: 'Q', v: 10, q: 1}, {l: 'Z', v: 10, q: 1}, {l: '?', v: 0, q: 2}
         ];
 
         let bag = [];
         distribution.forEach(item => {
             for(let i=0; i<item.q; i++) bag.push({l: item.l, v: item.v});
         });
-
         bag.sort(() => Math.random() - 0.5);
 
         function createTile(data) {
             const t = document.createElement('div');
             t.className = 'tile';
-            // If it's a blank tile (?), show empty space
             t.innerHTML = `<span class="letter">${data.l === '?' ? '' : data.l}</span><span class="val">${data.v}</span>`;
-            
             t.onclick = () => {
                 if (data.l === '?') {
-                    let choice = prompt("Enter a letter for your Wild Card:");
+                    let choice = prompt("Enter a letter for Wild Card:");
                     if (choice && choice.length === 1) {
                         t.querySelector('.letter').innerText = choice.toUpperCase();
                         t.querySelector('.letter').classList.add('wild');
-                        t.querySelector('.val').innerText = '2'; // 0 + 2 points per rules
+                        t.querySelector('.val').innerText = '2';
                     }
                 }
             };
@@ -122,8 +132,7 @@
 
         for(let i=0; i<7; i++) {
             const data = bag.pop();
-            const tileElement = createTile(data);
-            document.getElementById('rack').appendChild(tileElement);
+            document.getElementById('rack').appendChild(createTile(data));
         }
     </script>
 </body>

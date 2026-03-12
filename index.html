@@ -35,21 +35,28 @@
         .tw { color: var(--tw); box-shadow: inset 0 0 8px var(--tw); }
         .dd { color: var(--dd); box-shadow: inset 0 0 12px var(--dd); border: 1px solid var(--dd); font-size: 9px; }
 
-        .rack { display: flex; gap: 8px; padding: 20px 10px; width: 100%; justify-content: center; min-height: 80px; }
+        /* Hide the star symbol when a tile is inside */
+        .cell.occupied.s { color: transparent; box-shadow: none; background: var(--bg); }
+
+        .rack { display: flex; gap: 8px; padding: 20px 10px; width: 100%; justify-content: center; min-height: 80px; pointer-events: none;}
 
         .tile {
             width: 42px; height: 42px;
-            background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(210,210,210,0.8) 100%);
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.5);
+            /* LOWER OPACITY (0.7) for shine-through effect */
+            background: linear-gradient(135deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.4) 100%);
+            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+            border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.3);
             box-shadow: 0 4px 8px rgba(0,0,0,0.6);
             display: flex; align-items: center; justify-content: center;
             color: #000; font-size: 20px; font-weight: 900; position: absolute;
-            cursor: grab; z-index: 10; user-select: none;
+            cursor: grab; z-index: 10; user-select: none; pointer-events: auto;
         }
-        .tile.on-board { position: relative; width: 100%; height: 100%; border-radius: 4px; font-size: 14px; box-shadow: none; }
-        .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; color: rgba(0,0,0,0.5); }
-        .dragging { opacity: 0.8; transform: scale(1.1); z-index: 100; pointer-events: none; }
+        
+        /* Snap-to-board style adjustment */
+        .tile.on-board { position: relative; width: 95%; height: 95%; border-radius: 6px; font-size: 16px; box-shadow: none; }
+        
+        .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; color: rgba(0,0,0,0.7); }
+        .dragging { opacity: 0.9; transform: scale(1.1); z-index: 100; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -59,9 +66,7 @@
 
     <script>
         const grid = document.getElementById('grid');
-        const rack = document.getElementById('rack');
         const status = document.getElementById('status');
-        let centerOccupied = false;
 
         const layout = {
             60: { t: '✦', c: 's' }, 0: { t: 'TL', c: 'tl' }, 10: { t: 'TL', c: 'tl' }, 24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' },
@@ -96,6 +101,7 @@
         bag.sort(() => Math.random() - 0.5);
 
         function initRack() {
+            const screenW = window.innerWidth;
             for(let i=0; i<7; i++) {
                 const data = bag.pop();
                 const t = document.createElement('div');
@@ -104,8 +110,7 @@
                 t.dataset.letter = data.l;
                 t.dataset.value = data.v;
                 
-                // Set initial rack position
-                t.style.left = `${i * 50 + (window.innerWidth/2 - 175)}px`;
+                t.style.left = `${(screenW / 2 - 175) + (i * 50)}px`;
                 t.style.bottom = `40px`;
                 
                 addDragListeners(t);
@@ -122,9 +127,14 @@
                 offsetY = touch.clientY - el.getBoundingClientRect().top;
                 el.classList.add('dragging');
                 
-                if(el.dataset.letter === '?') {
+                if(el.dataset.letter === '?' && el.querySelector('span').innerText === '') {
                     let c = prompt("Wild Card Letter:");
-                    if(c) { el.querySelector('span').innerText = c.toUpperCase(); el.dataset.value = 2; el.querySelector('.val').innerText = 2; }
+                    if(c) { 
+                        el.querySelector('span').innerText = c.toUpperCase(); 
+                        el.dataset.value = 2; 
+                        el.querySelector('.val').innerText = 2; 
+                        el.style.color = '#E0115F';
+                    }
                 }
             };
 
@@ -151,13 +161,13 @@
                     el.classList.add('on-board');
                     el.style.left = '0'; el.style.top = '0'; el.style.position = 'relative';
                     cell.appendChild(el);
+                    cell.classList.add('occupied');
                     
                     if(cell.dataset.index == "60") {
-                        centerOccupied = true;
                         status.innerText = "CENTER COVERED - PLAY ON";
                     }
                 } else {
-                    // Return to rack if missed
+                    // Reset if not on cell
                     el.classList.remove('on-board');
                     el.style.position = 'absolute';
                     el.style.top = 'auto'; el.style.bottom = '40px';

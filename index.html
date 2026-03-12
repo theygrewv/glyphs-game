@@ -1,59 +1,83 @@
-<script>
-    const grid = document.getElementById('grid');
-    
-    // THE 8-DD MASTER LAYOUT
-    const layout = {
-        // [S] Start Square
-        60: { t: '✦', c: 's' },
-        
-        // DD (Polished Gold) - 8 Total Squares
-        0: { t: 'DD', c: 'dd' }, 10: { t: 'DD', c: 'dd' },    // Top Corners
-        110: { t: 'DD', c: 'dd' }, 120: { t: 'DD', c: 'dd' }, // Bottom Corners
-        5: { t: 'DD', c: 'dd' },                            // Top Mid
-        115: { t: 'DD', c: 'dd' },                          // Bottom Mid
-        55: { t: 'DD', c: 'dd' },                           // Left Mid
-        65: { t: 'DD', c: 'dd' },                           // Right Mid
-
-        // TW (Ruby Red) - The Diamond Points
-        27: { t: 'TW', c: 'tw' }, 33: { t: 'TW', c: 'tw' },
-        87: { t: 'TW', c: 'tw' }, 93: { t: 'TW', c: 'tw' },
-
-        // DW (Sunset Orange) - Inner Frame
-        37: { t: 'DW', c: 'dw' }, 39: { t: 'DW', c: 'dw' },
-        49: { t: 'DW', c: 'dw' }, 51: { t: 'DW', c: 'dw' },
-        69: { t: 'DW', c: 'dw' }, 71: { t: 'DW', c: 'dw' },
-        81: { t: 'DW', c: 'dw' }, 83: { t: 'DW', c: 'dw' },
-
-        // TL (Royal Purple)
-        24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' },
-        90: { t: 'TL', c: 'tl' }, 96: { t: 'TL', c: 'tl' },
-        12: { t: 'TL', c: 'tl' }, 20: { t: 'TL', c: 'tl' },
-        100: { t: 'TL', c: 'tl' }, 108: { t: 'TL', c: 'tl' },
-
-        // DL (Electric Cyan)
-        2: { t: 'DL', c: 'dl' }, 8: { t: 'DL', c: 'dl' },
-        44: { t: 'DL', c: 'dl' }, 54: { t: 'DL', c: 'dl' },
-        66: { t: 'DL', c: 'dl' }, 76: { t: 'DL', c: 'dl' },
-        112: { t: 'DL', c: 'dl' }, 118: { t: 'DL', c: 'dl' }
-    };
-
-    // Render the Grid
-    for (let i = 0; i < 121; i++) {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        if (layout[i]) {
-            cell.innerText = layout[i].t;
-            cell.classList.add(layout[i].c);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Blitz Cross: 8-DD Edition</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --grid-line: rgba(255, 255, 255, 0.15);
+            --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F; --dd: #FFD700;
         }
-        grid.appendChild(cell);
-    }
+        body { background: var(--bg); color: #fff; margin: 0; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow: hidden; touch-action: none; }
+        header { width: 100%; padding: 15px; text-align: center; letter-spacing: 5px; font-weight: 900; border-bottom: 1px solid #111; font-size: 1.2rem; }
+        
+        .grid { 
+            display: grid; grid-template-columns: repeat(11, 1fr); 
+            width: 92vw; max-width: 480px; aspect-ratio: 1/1; 
+            background: var(--grid-line); gap: 1px; border: 1px solid var(--grid-line); margin-top: 15px;
+        }
+        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 900; position: relative; }
+        
+        /* Premium Glows */
+        .s { background: #fff; color: #000; box-shadow: 0 0 25px #fff; border-radius: 2px; font-size: 16px; z-index: 2; }
+        .dl { color: var(--dl); box-shadow: inset 0 0 10px var(--dl); }
+        .tl { color: var(--tl); box-shadow: inset 0 0 10px var(--tl); }
+        .dw { color: var(--dw); box-shadow: inset 0 0 10px var(--dw); }
+        .tw { color: var(--tw); box-shadow: inset 0 0 10px var(--tw); }
+        .dd { color: var(--dd); box-shadow: inset 0 0 15px var(--dd), 0 0 10px rgba(255,215,0,0.4); border: 1px solid var(--dd); font-size: 10px; z-index: 1; }
 
-    // Render the Onyx Rack
-    const hand = [{l:'B',v:4},{l:'L',v:1},{l:'I',v:1},{l:'T',v:1},{l:'Z',v:10},{l:'C',v:4},{l:'X',v:8}];
-    hand.forEach(p => {
-        const t = document.createElement('div');
-        t.className = 'tile';
-        t.innerHTML = `${p.l}<span class="val">${p.v}</span>`;
-        document.getElementById('rack').appendChild(t);
-    });
-</script>
+        .rack { margin-top: auto; margin-bottom: 40px; display: flex; gap: 8px; padding: 10px; }
+        .tile {
+            width: 46px; height: 46px; background: linear-gradient(145deg, #2a2a2a, #000);
+            border-radius: 12px; border: 1px solid #444; display: flex; align-items: center; 
+            justify-content: center; font-size: 22px; font-weight: 900; box-shadow: 0 6px 12px #000;
+            position: relative;
+        }
+        .val { position: absolute; bottom: 4px; right: 6px; font-size: 8px; color: #777; }
+    </style>
+</head>
+<body>
+    <header>BLITZ CROSS</header>
+    <div class="grid" id="grid"></div>
+    <div class="rack" id="rack"></div>
+
+    <script>
+        const grid = document.getElementById('grid');
+        const layout = {
+            60: { t: '✦', c: 's' },
+            // THE 8 DD SQUARES
+            0: { t: 'DD', c: 'dd' }, 10: { t: 'DD', c: 'dd' }, 110: { t: 'DD', c: 'dd' }, 120: { t: 'DD', c: 'dd' },
+            5: { t: 'DD', c: 'dd' }, 115: { t: 'DD', c: 'dd' }, 55: { t: 'DD', c: 'dd' }, 65: { t: 'DD', c: 'dd' },
+            
+            // Other Bonuses (Symmetrical Pattern)
+            27: { t: 'TW', c: 'tw' }, 33: { t: 'TW', c: 'tw' }, 87: { t: 'TW', c: 'tw' }, 93: { t: 'TW', c: 'tw' },
+            37: { t: 'DW', c: 'dw' }, 39: { t: 'DW', c: 'dw' }, 49: { t: 'DW', c: 'dw' }, 51: { t: 'DW', c: 'dw' },
+            69: { t: 'DW', c: 'dw' }, 71: { t: 'DW', c: 'dw' }, 81: { t: 'DW', c: 'dw' }, 83: { t: 'DW', c: 'dw' },
+            24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' }, 90: { t: 'TL', c: 'tl' }, 96: { t: 'TL', c: 'tl' },
+            12: { t: 'TL', c: 'tl' }, 20: { t: 'TL', c: 'tl' }, 100: { t: 'TL', c: 'tl' }, 108: { t: 'TL', c: 'tl' },
+            2: { t: 'DL', c: 'dl' }, 8: { t: 'DL', c: 'dl' }, 44: { t: 'DL', c: 'dl' }, 54: { t: 'DL', c: 'dl' },
+            66: { t: 'DL', c: 'dl' }, 76: { t: 'DL', c: 'dl' }, 112: { t: 'DL', c: 'dl' }, 118: { t: 'DL', c: 'dl' }
+        };
+
+        for (let i = 0; i < 121; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            if (layout[i]) {
+                cell.innerText = layout[i].t;
+                cell.classList.add(layout[i].c);
+            }
+            grid.appendChild(cell);
+        }
+
+        const hand = [{l:'B',v:4},{l:'L',v:1},{l:'I',v:1},{l:'T',v:1},{l:'Z',v:10},{l:'C',v:4},{l:'X',v:8}];
+        hand.forEach(p => {
+            const t = document.createElement('div');
+            t.className = 'tile';
+            t.innerHTML = `${p.l}<span class="val">${p.v}</span>`;
+            document.getElementById('rack').appendChild(t);
+        });
+    </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Blitz Cross: Obsidian</title>
+    <title>Blitz Cross: Precision Edition</title>
     <style>
         :root {
             --bg: #000000;
@@ -22,9 +22,9 @@
             width: 94vw; max-width: 480px; aspect-ratio: 1/1; 
             background: var(--grid-line); gap: 1px; border: 1px solid var(--grid-line); margin-top: 15px;
         }
-        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 900; }
+        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 900; text-align: center; }
         
-        /* The Luxury Glows */
+        /* Specialized Glows */
         .s { background: #fff; color: #000; box-shadow: 0 0 20px #fff; border-radius: 2px; font-size: 14px; z-index: 2; }
         .dl { color: var(--dl); box-shadow: inset 0 0 10px var(--dl); }
         .tl { color: var(--tl); box-shadow: inset 0 0 10px var(--tl); }
@@ -50,28 +50,29 @@
     <script>
         const grid = document.getElementById('grid');
         
-        // COORDINATE MAP FROM BLUEPRINT 11327.png
+        // Mapped from your (x,y) coordinates to 0-120 index
         const layout = {
-            60: { t: '✦', c: 's' }, // Center
-            // 8 DD (Gold) - Corners + Midpoints
-            0: { t: 'DD', c: 'dd' }, 10: { t: 'DD', c: 'dd' }, 110: { t: 'DD', c: 'dd' }, 120: { t: 'DD', c: 'dd' },
-            5: { t: 'DD', c: 'dd' }, 115: { t: 'DD', c: 'dd' }, 55: { t: 'DD', c: 'dd' }, 65: { t: 'DD', c: 'dd' },
+            60: { t: '✦', c: 's' }, // Center Start
             
-            // TW (Red)
-            13: { t: 'TW', c: 'tw' }, 19: { t: 'TW', c: 'tw' }, 101: { t: 'TW', c: 'tw' }, 107: { t: 'TW', c: 'tw' },
-            
-            // DW (Orange) - The Diamond Frame
-            37: { t: 'DW', c: 'dw' }, 39: { t: 'DW', c: 'dw' }, 48: { t: 'DW', c: 'dw' }, 50: { t: 'DW', c: 'dw' },
-            52: { t: 'DW', c: 'dw' }, 70: { t: 'DW', c: 'dw' }, 81: { t: 'DW', c: 'dw' }, 83: { t: 'DW', c: 'dw' },
-            
-            // TL (Purple) - Outer Power Clusters
-            24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' }, 90: { t: 'TL', c: 'tl' }, 96: { t: 'TL', c: 'tl' },
-            40: { t: 'TL', c: 'tl' }, 42: { t: 'TL', c: 'tl' }, 78: { t: 'TL', c: 'tl' }, 80: { t: 'TL', c: 'tl' },
-            
-            // DL (Cyan) - Grid Fill
-            2: { t: 'DL', c: 'dl' }, 8: { t: 'DL', c: 'dl' }, 26: { t: 'DL', c: 'dl' }, 34: { t: 'DL', c: 'dl' },
-            44: { t: 'DL', c: 'dl' }, 54: { t: 'DL', c: 'dl' }, 66: { t: 'DL', c: 'dl' }, 76: { t: 'DL', c: 'dl' },
-            86: { t: 'DL', c: 'dl' }, 94: { t: 'DL', c: 'dl' }, 112: { t: 'DL', c: 'dl' }, 118: { t: 'DL', c: 'dl' }
+            // TL (Triple Letter) - 8 Total
+            0: { t: 'TL', c: 'tl' }, 10: { t: 'TL', c: 'tl' }, 24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' },
+            90: { t: 'TL', c: 'tl' }, 96: { t: 'TL', c: 'tl' }, 110: { t: 'TL', c: 'tl' }, 120: { t: 'TL', c: 'tl' },
+
+            // TW (Triple Word) - 8 Total
+            3: { t: 'TW', c: 'tw' }, 7: { t: 'TW', c: 'tw' }, 33: { t: 'TW', c: 'tw' }, 43: { t: 'TW', c: 'tw' },
+            77: { t: 'TW', c: 'tw' }, 87: { t: 'TW', c: 'tw' }, 113: { t: 'TW', c: 'tw' }, 117: { t: 'TW', c: 'tw' },
+
+            // DL (Double Letter) - 8 Total
+            12: { t: 'DL', c: 'dl' }, 20: { t: 'DL', c: 'dl' }, 36: { t: 'DL', c: 'dl' }, 40: { t: 'DL', c: 'dl' },
+            80: { t: 'DL', c: 'dl' }, 84: { t: 'DL', c: 'dl' }, 100: { t: 'DL', c: 'dl' }, 108: { t: 'DL', c: 'dl' },
+
+            // DW (Double Word) - 6 Total
+            16: { t: 'DW', c: 'dw' }, 47: { t: 'DW', c: 'dw' }, 51: { t: 'DW', c: 'dw' }, 56: { t: 'DW', c: 'dw' },
+            104: { t: 'DW', c: 'dw' }, 64: { t: 'DW', c: 'dw' },
+
+            // DD (Double-Double) - 8 Total
+            26: { t: 'DD', c: 'dd' }, 28: { t: 'DD', c: 'dd' }, 46: { t: 'DD', c: 'dd' }, 52: { t: 'DD', c: 'dd' },
+            68: { t: 'DD', c: 'dd' }, 74: { t: 'DD', c: 'dd' }, 92: { t: 'DD', c: 'dd' }, 94: { t: 'DD', c: 'dd' }
         };
 
         for (let i = 0; i < 121; i++) {

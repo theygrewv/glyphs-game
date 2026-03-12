@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Blitz Cross: Smart Scoring</title>
+    <title>Blitz Cross: Precision Scoring</title>
     <style>
         :root {
             --bg: #000000;
-            --grid-line: rgba(255, 255, 255, 0.15);
+            --grid-line: rgba(255, 255, 255, 0.2);
             --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F;
             --gold: #FFD700;
         }
@@ -20,15 +20,14 @@
             overflow: hidden; touch-action: none; 
         }
         header { width: 100%; padding: 10px; text-align: center; border-bottom: 1px solid #111; }
-        .score-box { font-size: 1.5rem; font-weight: 900; letter-spacing: 2px; color: var(--gold); text-shadow: 0 0 10px rgba(255,215,0,0.5); }
-        .status-msg { font-size: 0.7rem; letter-spacing: 3px; opacity: 0.8; margin-top: 5px; text-transform: uppercase; min-height: 1.2em;}
+        .score-box { font-size: 1.5rem; font-weight: 900; letter-spacing: 2px; color: var(--gold); }
 
         .grid { 
             display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); 
-            width: 90vw; max-width: 420px; aspect-ratio: 1/1; 
-            background: var(--grid-line); gap: 1px; border: 1px solid var(--grid-line);
+            width: 95vw; max-width: 420px; aspect-ratio: 1/1; 
+            background: var(--grid-line); gap: 0px; border: 1px solid var(--grid-line); /* Removed gap for seamless words */
         }
-        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 900; position: relative; }
+        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 900; position: relative; border: 0.1px solid rgba(255,255,255,0.05); }
         .s { background: #fff; color: #000; box-shadow: 0 0 15px #fff; border-radius: 2px; font-size: 12px; z-index: 1; }
         .dl { color: var(--dl); box-shadow: inset 0 0 8px var(--dl); }
         .tl { color: var(--tl); box-shadow: inset 0 0 8px var(--tl); }
@@ -43,36 +42,38 @@
             border-radius: 4px; border: 1px solid #555;
             display: flex; align-items: center; justify-content: center;
             color: #000; font-size: 22px; font-weight: 900; position: absolute;
-            cursor: grab; z-index: 10; user-select: none; pointer-events: auto;
-            transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.4s ease, transform 0.2s ease;
+            cursor: grab; z-index: 10; user-select: none;
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s ease;
         }
-        .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; transition: none; }
-        .tile.locked { opacity: 1; pointer-events: none; background: #eee; border: 0.5px solid #000; }
-        .tile.dragging { transition: none; opacity: 0.8; transform: scale(1.2); z-index: 100; pointer-events: none; }
+        /* No separation between letters on board */
+        .tile.on-board { 
+            position: absolute; width: 100.5%; height: 100.5%; 
+            border-radius: 0; border: 0.5px solid #000;
+            left: 0 !important; top: 0 !important; transition: none; 
+        }
+        .tile.locked { opacity: 1; pointer-events: none; background: #eee; }
+        .tile.dragging { transition: none !important; z-index: 1000; transform: scale(1.1); }
         
         #ghost-score {
-            position: absolute; padding: 2px 8px; border-radius: 4px; font-weight: 900; 
-            font-size: 14px; pointer-events: none; z-index: 1000; display: none;
-            transform: translate(15px, -15px); transition: background 0.3s, box-shadow 0.3s;
+            position: fixed; padding: 2px 6px; border-radius: 4px; font-weight: 900; 
+            font-size: 11px; pointer-events: none; z-index: 2000; display: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
         }
-        #ghost-score.valid { background: var(--gold); color: #000; box-shadow: 0 0 15px var(--gold); }
-        #ghost-score.invalid { background: #fff; color: #000; opacity: 0.8; }
+        #ghost-score.valid { background: var(--gold); color: #000; box-shadow: 0 0 10px var(--gold); }
+        #ghost-score.invalid { background: #fff; color: #000; opacity: 0.9; }
 
-        .val { position: absolute; bottom: 2px; right: 4px; font-size: 9px; color: rgba(0,0,0,0.6); }
         .controls { width: 100%; display: flex; justify-content: center; gap: 8px; padding: 10px; }
         .btn {
-            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
             color: #fff; padding: 12px 18px; border-radius: 30px; font-weight: 900;
-            cursor: pointer; text-transform: uppercase; font-size: 0.6rem; transition: 0.2s;
+            text-transform: uppercase; font-size: 0.6rem;
         }
         .btn.primary { background: #fff; color: #000; border: none; }
+        .val { position: absolute; bottom: 1px; right: 2px; font-size: 8px; color: rgba(0,0,0,0.6); }
     </style>
 </head>
 <body>
-    <header>
-        <div class="score-box" id="total-score">000</div>
-        <div class="status-msg" id="status">CONNECTING...</div>
-    </header>
+    <header><div class="score-box" id="total-score">000</div></header>
 
     <div class="grid" id="grid"></div>
     <div id="ghost-score">0</div>
@@ -87,7 +88,6 @@
 
     <script>
         const grid = document.getElementById('grid');
-        const status = document.getElementById('status');
         const totalScoreEl = document.getElementById('total-score');
         const ghost = document.getElementById('ghost-score');
         const playBtn = document.getElementById('play-btn');
@@ -119,8 +119,7 @@
                 const response = await fetch(DICTIONARY_URL);
                 const text = await response.text();
                 dictionary = new Set(text.split('\n').map(w => w.trim().toUpperCase()).filter(w => w.length >= 2));
-                status.innerText = "READY";
-            } catch (e) { status.innerText = "OFFLINE"; }
+            } catch (e) { console.log("Lexicon Error"); }
         }
 
         function refillAndReflow() {
@@ -142,9 +141,9 @@
                 t.className = 'tile';
                 t.innerHTML = `<span>${data.l==='?'?'':data.l}</span><span class="val">${data.v}</span>`;
                 t.dataset.letter = data.l; t.dataset.value = data.v; t.dataset.origLeft = x;
-                t.style.left = x; t.style.bottom = "-80px"; 
+                t.style.left = x; t.style.bottom = "-100px"; 
                 addDrag(t); document.body.appendChild(t);
-                setTimeout(() => { t.style.bottom = "20px"; }, i * 100);
+                setTimeout(() => { t.style.bottom = "20px"; }, i * 80);
             }
         }
 
@@ -169,24 +168,26 @@
         function updateLiveScore() {
             if (placedTiles.length === 0) { ghost.style.display = 'none'; return; }
             const sorted = [...placedTiles].sort((a,b) => a.index - b.index);
-            const r = sorted.map(t => Math.floor(t.index / 11));
-            const c = sorted.map(t => t.index % 11);
-            const isV = c.every(v => v === c[0]) && sorted.length > 1;
+            
+            // Logic to find direction and scan the full line
+            const cols = sorted.map(t => t.index % 11);
+            const isV = cols.every(v => v === cols[0]) && sorted.length > 1;
             const step = isV ? 11 : 1;
             
             let fullWord = [];
             let curr = sorted[0].index;
             while (curr - step >= 0) {
                 const p = document.querySelector(`.cell[data-index="${curr - step}"]`);
-                if (p?.classList.contains('occupied')) {
+                if (p?.querySelector('.tile')) {
                     if (!isV && Math.floor((curr-step)/11) !== Math.floor(curr/11)) break;
                     curr -= step;
                 } else break;
             }
             while (curr < 121) {
                 const cell = document.querySelector(`.cell[data-index="${curr}"]`);
-                if (cell?.classList.contains('occupied')) {
-                    fullWord.push({ el: cell.querySelector('.tile'), index: curr });
+                const tileEl = cell?.querySelector('.tile');
+                if (tileEl) {
+                    fullWord.push({ el: tileEl, index: curr });
                     if (!isV && Math.floor((curr+step)/11) !== Math.floor(curr/11)) break;
                     curr += step;
                 } else if (sorted.some(t => t.index > curr)) { curr += step; continue; } 
@@ -196,40 +197,42 @@
             const points = calculateFullWordScore(fullWord);
             const wordStr = fullWord.map(t => t.el.querySelector('span').innerText).join('');
             
-            const lastRect = sorted[sorted.length-1].el.getBoundingClientRect();
+            // PRECISION ANCHOR: Attach ghost to the last tile of the SCANNED word
+            const lastTile = fullWord[fullWord.length - 1].el;
+            const rect = lastTile.getBoundingClientRect();
+            
             ghost.style.display = 'block';
-            ghost.style.left = `${lastRect.right}px`;
-            ghost.style.top = `${lastRect.top}px`;
             ghost.innerText = points;
+            
+            // Position Badge at bottom-right of the last tile
+            ghost.style.left = `${rect.right - 10}px`;
+            ghost.style.top = `${rect.bottom - 10}px`;
 
-            if (dictionary.has(wordStr)) {
-                ghost.className = 'valid';
-            } else {
-                ghost.className = 'invalid';
-            }
+            if (dictionary.has(wordStr)) { ghost.className = 'valid'; } 
+            else { ghost.className = 'invalid'; }
         }
 
         function addDrag(el) {
             let ox, oy;
             const start = (e) => {
                 if (el.classList.contains('locked')) return;
-                const touch = e.type.includes('touch') ? e.touches[0] : e;
+                const t = e.type.includes('touch') ? e.touches[0] : e;
                 const r = el.getBoundingClientRect();
-                ox = touch.clientX - r.left; oy = touch.clientY - r.top;
+                ox = t.clientX - r.left; oy = t.clientY - r.top;
                 if(el.parentElement.classList.contains('cell')) {
                     el.parentElement.classList.remove('occupied');
                     placedTiles = placedTiles.filter(p => p.el !== el);
                     document.body.appendChild(el);
                     el.classList.remove('on-board');
-                    el.style.position = 'absolute'; el.style.left = `${r.left}px`; el.style.top = `${r.top}px`;
+                    el.style.position = 'absolute'; el.style.left = `${t.clientX - ox}px`; el.style.top = `${t.clientY - oy}px`;
                     updateLiveScore();
                 }
                 el.classList.add('dragging');
             };
             const move = (e) => {
                 if (!el.classList.contains('dragging')) return;
-                const touch = e.type.includes('touch') ? e.touches[0] : e;
-                el.style.left = `${touch.clientX - ox}px`; el.style.top = `${touch.clientY - oy}px`; el.style.bottom = 'auto';
+                const t = e.type.includes('touch') ? e.touches[0] : e;
+                el.style.left = `${t.clientX - ox}px`; el.style.top = `${t.clientY - oy}px`; el.style.bottom = 'auto';
             };
             const end = () => {
                 if (!el.classList.contains('dragging')) return;
@@ -238,7 +241,7 @@
                 const target = document.elementFromPoint(r.left + 22, r.top + 22);
                 el.style.display = 'flex';
                 const cell = target?.closest('.cell');
-                if (cell && !cell.classList.contains('occupied')) {
+                if (cell && !cell.querySelector('.tile')) {
                     el.classList.add('on-board'); cell.appendChild(el); cell.classList.add('occupied');
                     placedTiles.push({ el: el, index: parseInt(cell.dataset.index) });
                 } else { returnHome(el); }
@@ -255,24 +258,13 @@
         }
 
         playBtn.addEventListener('click', () => {
-            if (placedTiles.length === 0) return;
-            // Capture current ghost state for final score
-            const wordStr = Array.from(document.querySelectorAll('.tile.on-board')).map(t => t.querySelector('span').innerText).join(''); // Simpler check for play
-            if (ghost.className !== 'valid') { status.innerText = "WORD NOT FOUND"; return; }
-
-            const points = parseInt(ghost.innerText);
-            totalScore += points;
+            if (ghost.className !== 'valid') return;
+            totalScore += parseInt(ghost.innerText);
             totalScoreEl.innerText = totalScore.toString().padStart(3, '0');
-            
-            placedTiles.forEach(t => {
-                t.el.classList.add('locked');
-                t.el.parentElement.classList.add('occupied');
-            });
-            
+            placedTiles.forEach(t => t.el.classList.add('locked'));
             placedTiles = [];
             ghost.style.display = 'none';
             refillAndReflow();
-            status.innerText = `+${points} POINTS!`;
         });
 
         shuffleBtn.addEventListener('click', () => {

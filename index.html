@@ -39,32 +39,33 @@
         .controls { width: 100%; display: flex; justify-content: center; padding-bottom: 20px; }
         
         #recall-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: #fff;
-            padding: 12px 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 12px 40px;
             border-radius: 30px;
             font-weight: 900;
-            letter-spacing: 2px;
-            backdrop-filter: blur(10px);
+            letter-spacing: 3px;
+            backdrop-filter: blur(15px);
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             text-transform: uppercase;
-            font-size: 0.7rem;
+            font-size: 0.65rem;
         }
-        #recall-btn:active { transform: scale(0.95); background: rgba(255, 255, 255, 0.2); }
+        #recall-btn:active { transform: scale(0.9) rotate(-2deg); background: rgba(255, 255, 255, 0.15); border-color: #fff; }
 
         .rack { display: flex; gap: 8px; width: 100%; justify-content: center; min-height: 60px; pointer-events: none;}
 
         .tile {
             width: 42px; height: 42px;
-            background: linear-gradient(135deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.4) 100%);
-            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
-            border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.6);
+            background: linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.45) 100%);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.5);
             display: flex; align-items: center; justify-content: center;
             color: #000; font-size: 20px; font-weight: 900; position: absolute;
             cursor: grab; z-index: 10; user-select: none; pointer-events: auto;
+            transform-origin: center;
         }
         
         .tile.on-board { 
@@ -74,16 +75,16 @@
         }
 
         .tile.invalid {
-            box-shadow: 0 0 15px #ff0000 !important;
+            box-shadow: 0 0 20px #ff0000 !important;
             z-index: 50;
         }
-        .tile.invalid.edge-top { border-top: 3px solid #ff0000 !important; }
-        .tile.invalid.edge-bottom { border-bottom: 3px solid #ff0000 !important; }
-        .tile.invalid.edge-left { border-left: 3px solid #ff0000 !important; }
-        .tile.invalid.edge-right { border-right: 3px solid #ff0000 !important; }
+        .tile.invalid.edge-top { border-top: 4px solid #ff0000 !important; }
+        .tile.invalid.edge-bottom { border-bottom: 4px solid #ff0000 !important; }
+        .tile.invalid.edge-left { border-left: 4px solid #ff0000 !important; }
+        .tile.invalid.edge-right { border-right: 4px solid #ff0000 !important; }
         
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; color: rgba(0,0,0,0.7); }
-        .dragging { opacity: 0.9; transform: scale(1.1); z-index: 100; pointer-events: none; }
+        .dragging { opacity: 0.8; transform: scale(1.2) rotate(3deg); z-index: 100; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -91,7 +92,7 @@
     <div class="grid" id="grid"></div>
     
     <div class="controls">
-        <button id="recall-btn">Recall Tiles</button>
+        <button id="recall-btn">Recall Hand</button>
     </div>
     
     <div class="rack" id="rack"></div>
@@ -195,14 +196,19 @@
             let offsetX, offsetY;
             const onStart = (e) => {
                 const touch = e.type === 'touchstart' ? e.touches[0] : e;
-                offsetX = touch.clientX - el.getBoundingClientRect().left;
-                offsetY = touch.clientY - el.getBoundingClientRect().top;
+                const rect = el.getBoundingClientRect();
+                offsetX = touch.clientX - rect.left;
+                offsetY = touch.clientY - rect.top;
+                
                 if(el.parentElement.classList.contains('cell')) {
                     el.parentElement.classList.remove('occupied');
                     placedTiles = placedTiles.filter(p => p.el !== el);
                     document.body.appendChild(el);
                     el.classList.remove('on-board');
                     el.style.position = 'absolute';
+                    // Re-position at the spot it was on the board before dragging
+                    el.style.left = `${rect.left}px`;
+                    el.style.top = `${rect.top}px`;
                     validatePlacement();
                 }
                 el.classList.add('dragging');
@@ -247,29 +253,49 @@
             window.addEventListener('touchend', onEnd);
         }
 
-        function returnToHand(el) {
+        function returnToHand(el, delay = 0) {
+            // High-fidelity animation logic
+            const rect = el.getBoundingClientRect();
+            if (el.parentElement.classList.contains('cell')) {
+                document.body.appendChild(el);
+                el.style.left = `${rect.left}px`;
+                el.style.top = `${rect.top}px`;
+            }
+            
             el.classList.remove('on-board');
             el.style.position = 'absolute';
-            el.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-            el.style.left = el.dataset.origLeft;
-            el.style.bottom = '40px'; 
-            el.style.top = 'auto';
-            setTimeout(() => { 
-                el.style.transition = ''; 
-                validatePlacement(); 
-            }, 400);
+            el.style.zIndex = '200';
+            
+            // Random wobble for character
+            const wobble = (Math.random() * 20) - 10;
+            
+            setTimeout(() => {
+                el.style.transition = 'all 0.5s cubic-bezier(0.5, -0.5, 0.2, 1.5), transform 0.5s ease';
+                el.style.left = el.dataset.origLeft;
+                el.style.bottom = '40px'; 
+                el.style.top = 'auto';
+                el.style.transform = `rotate(${wobble}deg) scale(1.1)`;
+                
+                setTimeout(() => { 
+                    el.style.transition = 'all 0.2s ease';
+                    el.style.transform = 'rotate(0deg) scale(1)';
+                    el.style.zIndex = '10';
+                    setTimeout(() => { el.style.transition = ''; validatePlacement(); }, 200);
+                }, 500);
+            }, delay);
         }
 
         recallBtn.addEventListener('click', () => {
-            const boardTiles = document.querySelectorAll('.tile.on-board');
-            boardTiles.forEach(tile => {
+            const boardTiles = [...document.querySelectorAll('.tile.on-board')];
+            // Staggered release: tiles fly back one by one quickly
+            boardTiles.forEach((tile, index) => {
                 const cell = tile.parentElement;
                 cell.classList.remove('occupied');
-                document.body.appendChild(tile);
                 placedTiles = placedTiles.filter(p => p.el !== tile);
-                returnToHand(tile);
+                returnToHand(tile, index * 50); // 50ms stagger
             });
-            status.innerText = "TILES RECALLED";
+            status.innerText = "RECALLING...";
+            setTimeout(() => { status.innerText = "BLITZ CROSS"; }, 1000);
         });
 
         initRack();

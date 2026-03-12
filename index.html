@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Blitz Cross: Frosted Edition</title>
+    <title>Blitz Cross: Lexicon Edition</title>
     <style>
         :root {
             --bg: #000000;
@@ -27,6 +27,7 @@
         }
         .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 900; position: relative; overflow: visible;}
         
+        /* Bonus Tiles */
         .s { background: #fff; color: #000; box-shadow: 0 0 15px #fff; border-radius: 2px; font-size: 12px; z-index: 1; }
         .dl { color: var(--dl); box-shadow: inset 0 0 8px var(--dl); }
         .tl { color: var(--tl); box-shadow: inset 0 0 8px var(--tl); }
@@ -36,23 +37,24 @@
 
         .cell.occupied.s { color: transparent; box-shadow: none; background: var(--bg); }
 
-        .controls { width: 100%; display: flex; justify-content: center; gap: 10px; padding-bottom: 20px; }
+        .controls { width: 100%; display: flex; justify-content: center; gap: 8px; padding: 10px; }
         
         .btn {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            color: rgba(255, 255, 255, 0.8);
-            padding: 12px 20px;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 12px 18px;
             border-radius: 30px;
             font-weight: 900;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             backdrop-filter: blur(15px);
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             text-transform: uppercase;
             font-size: 0.6rem;
+            transition: all 0.2s;
         }
-        .btn:active { transform: scale(0.9) rotate(-2deg); background: rgba(255, 255, 255, 0.15); border-color: #fff; }
+        .btn:active { transform: scale(0.9); background: rgba(255, 255, 255, 0.15); }
+        .btn.primary { background: #fff; color: #000; border: none; }
 
         .rack { display: flex; gap: 8px; width: 100%; justify-content: center; min-height: 60px; pointer-events: none;}
 
@@ -74,23 +76,39 @@
             left: 0 !important; top: 0 !important;
         }
 
+        .tile.locked { opacity: 0.9; cursor: default; pointer-events: none; border: 1px solid rgba(255,255,255,0.1); }
+
+        /* Unified Error Glow */
         .tile.invalid { box-shadow: 0 0 20px #ff0000 !important; z-index: 50; }
         .tile.invalid.edge-top { border-top: 4px solid #ff0000 !important; }
         .tile.invalid.edge-bottom { border-bottom: 4px solid #ff0000 !important; }
         .tile.invalid.edge-left { border-left: 4px solid #ff0000 !important; }
         .tile.invalid.edge-right { border-right: 4px solid #ff0000 !important; }
+
+        /* Success Pulse Animation */
+        @keyframes successPulse {
+            0% { box-shadow: 0 0 5px #fff; border-color: #fff; }
+            50% { box-shadow: 0 0 25px #fff, 0 0 40px rgba(255,255,255,0.5); border-color: #fff; transform: scale(1.05); }
+            100% { box-shadow: 0 0 5px #fff; border-color: #fff; }
+        }
+        .tile.valid-word {
+            animation: successPulse 0.6s ease-in-out forwards;
+            border: 2px solid #fff !important;
+            z-index: 60;
+        }
         
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; color: rgba(0,0,0,0.7); }
         .dragging { opacity: 0.8; transform: scale(1.2) rotate(3deg); z-index: 100; pointer-events: none; }
     </style>
 </head>
 <body>
-    <header id="status">BLITZ CROSS</header>
+    <header id="status">INITIALIZING...</header>
     <div class="grid" id="grid"></div>
     
     <div class="controls">
         <button id="recall-btn" class="btn">Recall</button>
-        <button id="shuffle-btn" class="btn">Shuffle Hand</button>
+        <button id="shuffle-btn" class="btn">Shuffle</button>
+        <button id="play-btn" class="btn primary">Play Word</button>
     </div>
     
     <div class="rack" id="rack"></div>
@@ -98,10 +116,15 @@
     <script>
         const grid = document.getElementById('grid');
         const status = document.getElementById('status');
+        const playBtn = document.getElementById('play-btn');
         const recallBtn = document.getElementById('recall-btn');
         const shuffleBtn = document.getElementById('shuffle-btn');
+        
         let placedTiles = [];
+        let dictionary = new Set();
+        const DICTIONARY_URL = 'https://raw.githubusercontent.com/dolph/dictionary/master/enable1.txt';
 
+        // --- 1. Grid Layout ---
         const layout = {
             60: { t: '✦', c: 's' }, 0: { t: 'TL', c: 'tl' }, 10: { t: 'TL', c: 'tl' }, 24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' },
             90: { t: 'TL', c: 'tl' }, 96: { t: 'TL', c: 'tl' }, 110: { t: 'TL', c: 'tl' }, 120: { t: 'TL', c: 'tl' },
@@ -123,76 +146,64 @@
             grid.appendChild(cell);
         }
 
-        // CORRECTED POINT DISTRIBUTION
+        // --- 2. Corrected Point Distribution ---
+        const points = {'E':1,'A':1,'I':1,'O':1,'N':1,'R':1,'T':1,'L':1,'S':1,'D':2,'U':2,'G':2,'H':3,'M':3,'Y':3,'B':4,'C':4,'F':4,'P':4,'W':4,'K':5,'V':5,'J':8,'X':8,'Q':10,'Z':10,'?':0};
         const distribution = [
-            {l:'E',v:1,q:10}, {l:'A',v:1,q:8}, {l:'I',v:1,q:7}, {l:'O',v:1,q:7}, {l:'N',v:1,q:5}, {l:'R',v:1,q:5}, {l:'T',v:1,q:5}, {l:'L',v:1,q:4}, {l:'S',v:1,q:4},
-            {l:'D',v:2,q:4}, {l:'U',v:2,q:4}, {l:'G',v:2,q:3},
-            {l:'H',v:3,q:2}, {l:'M',v:3,q:2}, {l:'Y',v:3,q:2},
-            {l:'B',v:4,q:2}, {l:'C',v:4,q:2}, {l:'F',v:4,q:2}, {l:'P',v:4,q:2}, {l:'W',v:4,q:2},
-            {l:'K',v:5,q:1}, {l:'V',v:5,q:2},
-            {l:'J',v:8,q:1}, {l:'X',v:8,q:1},
-            {l:'Q',v:10,q:1}, {l:'Z',v:10,q:1},
+            {l:'E',v:1,q:10},{l:'A',v:1,q:8},{l:'I',v:1,q:7},{l:'O',v:1,q:7},{l:'N',v:1,q:5},{l:'R',v:1,q:5},{l:'T',v:1,q:5},{l:'L',v:1,q:4},{l:'S',v:1,q:4},
+            {l:'D',v:2,q:4},{l:'U',v:2,q:4},{l:'G',v:2,q:3},
+            {l:'H',v:3,q:2},{l:'M',v:3,q:2},{l:'Y',v:3,q:2},
+            {l:'B',v:4,q:2},{l:'C',v:4,q:2},{l:'F',v:4,q:2},{l:'P',v:4,q:2},{l:'W',v:4,q:2},
+            {l:'K',v:5,q:1},{l:'V',v:5,q:2},
+            {l:'J',v:8,q:1},{l:'X',v:8,q:1},
+            {l:'Q',v:10,q:1},{l:'Z',v:10,q:1},
             {l:'?',v:0,q:2}
         ];
 
         let bag = [];
         distribution.forEach(item => { for(let i=0; i<item.q; i++) bag.push({...item}); });
 
-        function getStartingHand() {
-            let hand = [];
-            const vowels = ['A', 'E', 'I', 'O', 'U', '?'];
-            let validHand = false;
-            while (!validHand) {
-                bag.sort(() => Math.random() - 0.5);
-                hand = bag.slice(0, 7);
-                let count = hand.filter(t => vowels.includes(t.l)).length;
-                if (count >= 2) { bag.splice(0, 7); validHand = true; }
+        // --- 3. Dictionary Loader ---
+        async function loadLexicon() {
+            try {
+                const response = await fetch(DICTIONARY_URL);
+                const text = await response.text();
+                const words = text.split('\n').map(w => w.trim().toUpperCase()).filter(w => w.length >= 2 && w.length <= 11);
+                dictionary = new Set(words);
+                status.innerText = "BLITZ CROSS";
+            } catch (e) {
+                status.innerText = "OFFLINE MODE";
+                ["QI","ZA","AX","EX","OX"].forEach(w => dictionary.add(w));
             }
-            return hand;
         }
 
-        function clearInvalidStyles(el) {
-            el.classList.remove('invalid', 'edge-top', 'edge-bottom', 'edge-left', 'edge-right');
-        }
+        // --- 4. Logic & Movement ---
+        function clearInvalidStyles(el) { el.classList.remove('invalid', 'edge-top', 'edge-bottom', 'edge-left', 'edge-right', 'valid-word'); }
 
         function validatePlacement() {
             placedTiles.forEach(t => clearInvalidStyles(t.el));
-            if (placedTiles.length < 2) return true;
+            if (placedTiles.length < 1) return true;
             const rows = placedTiles.map(t => Math.floor(t.index / 11));
             const cols = placedTiles.map(t => t.index % 11);
             const isHorizontal = rows.every(r => r === rows[0]);
             const isVertical = cols.every(c => c === cols[0]);
-
-            if (!isHorizontal && !isVertical) {
-                placedTiles.forEach(t => {
-                    t.el.classList.add('invalid');
-                    if (!placedTiles.find(p => p.index === t.index - 11)) t.el.classList.add('edge-top');
-                    if (!placedTiles.find(p => p.index === t.index + 11)) t.el.classList.add('edge-bottom');
-                    if (!placedTiles.find(p => p.index === t.index - 1)) t.el.classList.add('edge-left');
-                    if (!placedTiles.find(p => p.index === t.index + 1)) t.el.classList.add('edge-right');
-                });
-                status.innerText = "INVALID ALIGNMENT";
+            if (placedTiles.length > 1 && !isHorizontal && !isVertical) {
+                placedTiles.forEach(t => t.el.classList.add('invalid'));
                 return false;
-            } else {
-                status.innerText = "BLITZ CROSS";
-                return true;
             }
+            return true;
         }
 
         function initRack() {
-            const hand = getStartingHand();
-            const screenW = window.innerWidth;
-            const rackStart = screenW / 2 - 175;
-
+            bag.sort(() => Math.random() - 0.5);
+            const hand = bag.slice(0, 7);
+            const rackStart = window.innerWidth / 2 - 175;
             hand.forEach((data, i) => {
                 const t = document.createElement('div');
                 t.className = 'tile';
                 t.innerHTML = `<span>${data.l==='?'?'':data.l}</span><span class="val">${data.v}</span>`;
-                t.dataset.letter = data.l;
-                t.dataset.value = data.v;
+                t.dataset.letter = data.l; t.dataset.value = data.v;
                 t.dataset.origLeft = `${rackStart + (i * 50)}px`;
-                t.style.left = t.dataset.origLeft;
-                t.style.bottom = `40px`;
+                t.style.left = t.dataset.origLeft; t.style.bottom = `40px`;
                 addDragListeners(t);
                 document.body.appendChild(t);
             });
@@ -201,132 +212,111 @@
         function addDragListeners(el) {
             let offsetX, offsetY;
             const onStart = (e) => {
+                if (el.classList.contains('locked')) return;
                 const touch = e.type === 'touchstart' ? e.touches[0] : e;
                 const rect = el.getBoundingClientRect();
                 offsetX = touch.clientX - rect.left;
                 offsetY = touch.clientY - rect.top;
-                
                 if(el.parentElement.classList.contains('cell')) {
                     el.parentElement.classList.remove('occupied');
                     placedTiles = placedTiles.filter(p => p.el !== el);
                     document.body.appendChild(el);
                     el.classList.remove('on-board');
                     el.style.position = 'absolute';
-                    el.style.left = `${rect.left}px`;
-                    el.style.top = `${rect.top}px`;
-                    validatePlacement();
+                    el.style.left = `${rect.left}px`; el.style.top = `${rect.top}px`;
                 }
                 el.classList.add('dragging');
-                
-                // Wildcard Logic
                 if(el.dataset.letter === '?' && el.querySelector('span').innerText === '') {
                     let c = prompt("Wild Card Letter:");
-                    if(c) { 
-                        el.querySelector('span').innerText = c.toUpperCase(); 
-                        el.dataset.value = 0; // Keeping established logic: blanks are 0
-                        el.querySelector('.val').innerText = 0; 
-                        el.style.color = '#E0115F';
-                    }
+                    if(c) { el.querySelector('span').innerText = c.toUpperCase(); el.style.color = '#E0115F'; }
                 }
             };
-
             const onMove = (e) => {
                 if (!el.classList.contains('dragging')) return;
                 const touch = e.type === 'touchmove' ? e.touches[0] : e;
-                el.style.left = `${touch.clientX - offsetX}px`;
-                el.style.top = `${touch.clientY - offsetY}px`;
-                el.style.bottom = 'auto';
+                el.style.left = `${touch.clientX - offsetX}px`; el.style.top = `${touch.clientY - offsetY}px`; el.style.bottom = 'auto';
             };
-
             const onEnd = (e) => {
                 if (!el.classList.contains('dragging')) return;
                 el.classList.remove('dragging');
                 const rect = el.getBoundingClientRect();
-                const centerX = rect.left + rect.width/2;
-                const centerY = rect.top + rect.height/2;
                 el.style.display = 'none';
-                const target = document.elementFromPoint(centerX, centerY);
+                const target = document.elementFromPoint(rect.left + 21, rect.top + 21);
                 el.style.display = 'flex';
                 const cell = target?.closest('.cell');
-
                 if (cell && !cell.classList.contains('occupied')) {
-                    el.classList.add('on-board');
-                    el.style.left = ''; el.style.top = ''; el.style.bottom = '';
-                    cell.appendChild(el);
-                    cell.classList.add('occupied');
+                    el.classList.add('on-board'); cell.appendChild(el); cell.classList.add('occupied');
                     placedTiles.push({ el: el, index: parseInt(cell.dataset.index) });
                     validatePlacement();
-                } else {
-                    returnToHand(el);
-                }
+                } else { returnToHand(el); }
             };
-
-            el.addEventListener('mousedown', onStart);
             el.addEventListener('touchstart', onStart, {passive: false});
-            window.addEventListener('mousemove', onMove);
             window.addEventListener('touchmove', onMove, {passive: false});
-            window.addEventListener('mouseup', onEnd);
             window.addEventListener('touchend', onEnd);
+            el.addEventListener('mousedown', onStart);
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onEnd);
         }
 
-        function returnToHand(el, delay = 0, targetLeft = null) {
+        function returnToHand(el, delay = 0) {
             clearInvalidStyles(el);
             const rect = el.getBoundingClientRect();
             if (el.parentElement.classList.contains('cell')) {
                 document.body.appendChild(el);
-                el.style.left = `${rect.left}px`;
-                el.style.top = `${rect.top}px`;
+                el.style.left = `${rect.left}px`; el.style.top = `${rect.top}px`;
             }
-            el.classList.remove('on-board');
-            el.style.position = 'absolute';
-            el.style.zIndex = '200';
-            const wobble = (Math.random() * 20) - 10;
-            const finalLeft = targetLeft || el.dataset.origLeft;
-
+            el.classList.remove('on-board'); el.style.position = 'absolute'; el.style.zIndex = '200';
             setTimeout(() => {
                 el.style.transition = 'all 0.5s cubic-bezier(0.5, -0.5, 0.2, 1.5), transform 0.5s ease';
-                el.style.left = finalLeft;
-                el.style.bottom = '40px'; 
-                el.style.top = 'auto';
-                el.style.transform = `rotate(${wobble}deg) scale(1.1)`;
+                el.style.left = el.dataset.origLeft; el.style.bottom = '40px'; el.style.top = 'auto';
+                el.style.transform = `rotate(${(Math.random()*20)-10}deg) scale(1.1)`;
                 setTimeout(() => { 
-                    el.style.transition = 'all 0.2s ease';
-                    el.style.transform = 'rotate(0deg) scale(1)';
-                    el.style.zIndex = '10';
+                    el.style.transition = 'all 0.2s ease'; el.style.transform = 'rotate(0deg) scale(1)'; el.style.zIndex = '10';
                     setTimeout(() => { el.style.transition = ''; validatePlacement(); }, 200);
                 }, 500);
             }, delay);
         }
 
-        recallBtn.addEventListener('click', () => {
-            const boardTiles = [...document.querySelectorAll('.tile.on-board')];
-            placedTiles = []; 
-            boardTiles.forEach((tile, index) => {
-                const cell = tile.parentElement;
-                cell.classList.remove('occupied');
-                returnToHand(tile, index * 50);
-            });
-            status.innerText = "TILES RECALLED";
-        });
-
+        // --- 5. Controls & Success Glow ---
         shuffleBtn.addEventListener('click', () => {
-            // Only shuffle tiles NOT on the board
-            const handTiles = [...document.querySelectorAll('.tile:not(.on-board)')];
-            const currentPositions = handTiles.map(t => t.dataset.origLeft);
-            
-            // Randomize position array
-            for (let i = currentPositions.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [currentPositions[i], currentPositions[j]] = [currentPositions[j], currentPositions[i]];
-            }
-
-            handTiles.forEach((tile, index) => {
-                tile.dataset.origLeft = currentPositions[index];
-                returnToHand(tile, index * 30);
-            });
-            status.innerText = "HAND SHUFFLED";
+            const handTiles = [...document.querySelectorAll('.tile:not(.on-board):not(.locked)')];
+            const pos = handTiles.map(t => t.dataset.origLeft).sort(() => Math.random() - 0.5);
+            handTiles.forEach((t, i) => { t.dataset.origLeft = pos[i]; returnToHand(t, i * 30); });
         });
 
+        recallBtn.addEventListener('click', () => {
+            const board = [...document.querySelectorAll('.tile.on-board')];
+            placedTiles = [];
+            board.forEach((t, i) => { t.parentElement.classList.remove('occupied'); returnToHand(t, i * 50); });
+        });
+
+        playBtn.addEventListener('click', () => {
+            if (!validatePlacement() || placedTiles.length === 0) return;
+            const sorted = [...placedTiles].sort((a,b) => a.index - b.index);
+            const word = sorted.map(t => t.el.querySelector('span').innerText).join('');
+            
+            if (dictionary.has(word)) {
+                status.innerText = `ACCEPTED: ${word}`;
+                // Wave Glow Animation
+                sorted.forEach((t, i) => {
+                    setTimeout(() => t.el.classList.add('valid-word'), i * 100);
+                });
+                // Final Lock
+                setTimeout(() => {
+                    placedTiles.forEach(t => {
+                        t.el.classList.remove('valid-word');
+                        t.el.classList.add('locked');
+                        t.el.classList.remove('on-board');
+                    });
+                    placedTiles = [];
+                }, 1200);
+            } else {
+                status.innerText = `UNKNOWN: ${word}`;
+                placedTiles.forEach(t => t.el.classList.add('invalid'));
+            }
+        });
+
+        loadLexicon();
         initRack();
     </script>
 </body>

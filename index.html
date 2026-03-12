@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Blitz Cross: Lexicon Edition</title>
+    <title>Blitz Cross: Crossword Edition</title>
     <style>
         :root {
             --bg: #000000;
@@ -60,10 +60,10 @@
 
         .tile {
             width: 42px; height: 42px;
-            background: linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.45) 100%);
+            background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.6) 100%);
             backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-            border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.5);
+            border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
             display: flex; align-items: center; justify-content: center;
             color: #000; font-size: 20px; font-weight: 900; position: absolute;
             cursor: grab; z-index: 10; user-select: none; pointer-events: auto;
@@ -76,25 +76,27 @@
             left: 0 !important; top: 0 !important;
         }
 
-        .tile.locked { opacity: 0.9; cursor: default; pointer-events: none; border: 1px solid rgba(255,255,255,0.1); }
+        /* Permanently Locked Tiles */
+        .tile.locked { 
+            opacity: 1; 
+            cursor: default !important; 
+            pointer-events: none; 
+            background: #fff;
+            color: #000;
+            box-shadow: none;
+            border: 0.5px solid rgba(0,0,0,0.2);
+        }
 
-        /* Unified Error Glow */
         .tile.invalid { box-shadow: 0 0 20px #ff0000 !important; z-index: 50; }
-        .tile.invalid.edge-top { border-top: 4px solid #ff0000 !important; }
-        .tile.invalid.edge-bottom { border-bottom: 4px solid #ff0000 !important; }
-        .tile.invalid.edge-left { border-left: 4px solid #ff0000 !important; }
-        .tile.invalid.edge-right { border-right: 4px solid #ff0000 !important; }
-
-        /* Success Pulse Animation */
+        
         @keyframes successPulse {
             0% { box-shadow: 0 0 5px #fff; border-color: #fff; }
-            50% { box-shadow: 0 0 25px #fff, 0 0 40px rgba(255,255,255,0.5); border-color: #fff; transform: scale(1.05); }
+            50% { box-shadow: 0 0 30px #fff, 0 0 50px rgba(255,255,255,0.6); border-color: #fff; transform: scale(1.1); }
             100% { box-shadow: 0 0 5px #fff; border-color: #fff; }
         }
         .tile.valid-word {
-            animation: successPulse 0.6s ease-in-out forwards;
-            border: 2px solid #fff !important;
-            z-index: 60;
+            animation: successPulse 0.7s ease-in-out forwards;
+            z-index: 100;
         }
         
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; color: rgba(0,0,0,0.7); }
@@ -102,7 +104,7 @@
     </style>
 </head>
 <body>
-    <header id="status">INITIALIZING...</header>
+    <header id="status">CONNECTING LEXICON...</header>
     <div class="grid" id="grid"></div>
     
     <div class="controls">
@@ -124,19 +126,8 @@
         let dictionary = new Set();
         const DICTIONARY_URL = 'https://raw.githubusercontent.com/dolph/dictionary/master/enable1.txt';
 
-        // --- 1. Grid Layout ---
-        const layout = {
-            60: { t: '✦', c: 's' }, 0: { t: 'TL', c: 'tl' }, 10: { t: 'TL', c: 'tl' }, 24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' },
-            90: { t: 'TL', c: 'tl' }, 96: { t: 'TL', c: 'tl' }, 110: { t: 'TL', c: 'tl' }, 120: { t: 'TL', c: 'tl' },
-            3: { t: 'TW', c: 'tw' }, 7: { t: 'TW', c: 'tw' }, 33: { t: 'TW', c: 'tw' }, 43: { t: 'TW', c: 'tw' },
-            77: { t: 'TW', c: 'tw' }, 87: { t: 'TW', c: 'tw' }, 113: { t: 'TW', c: 'tw' }, 117: { t: 'TW', c: 'tw' },
-            12: { t: 'DL', c: 'dl' }, 20: { t: 'DL', c: 'dl' }, 36: { t: 'DL', c: 'dl' }, 40: { t: 'DL', c: 'dl' },
-            80: { t: 'DL', c: 'dl' }, 84: { t: 'DL', c: 'dl' }, 100: { t: 'DL', c: 'dl' }, 108: { t: 'DL', c: 'dl' },
-            16: { t: 'DW', c: 'dw' }, 48: { t: 'DW', c: 'dw' }, 50: { t: 'DW', c: 'dw' }, 56: { t: 'DW', c: 'dw' },
-            104: { t: 'DW', c: 'dw' }, 64: { t: 'DW', c: 'dw' }, 70: { t: 'DW', c: 'dw' }, 72: { t: 'DW', c: 'dw' },
-            26: { t: 'DD', c: 'dd' }, 28: { t: 'DD', c: 'dd' }, 46: { t: 'DD', c: 'dd' }, 52: { t: 'DD', c: 'dd' },
-            68: { t: 'DD', c: 'dd' }, 74: { t: 'DD', c: 'dd' }, 92: { t: 'DD', c: 'dd' }, 94: { t: 'DD', c: 'dd' }
-        };
+        // --- 1. Grid & Points ---
+        const layout = { 60: { t: '✦', c: 's' }, 0: { t: 'TL', c: 'tl' }, 10: { t: 'TL', c: 'tl' }, 24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' }, 90: { t: 'TL', c: 'tl' }, 96: { t: 'TL', c: 'tl' }, 110: { t: 'TL', c: 'tl' }, 120: { t: 'TL', c: 'tl' }, 3: { t: 'TW', c: 'tw' }, 7: { t: 'TW', c: 'tw' }, 33: { t: 'TW', c: 'tw' }, 43: { t: 'TW', c: 'tw' }, 77: { t: 'TW', c: 'tw' }, 87: { t: 'TW', c: 'tw' }, 113: { t: 'TW', c: 'tw' }, 117: { t: 'TW', c: 'tw' }, 12: { t: 'DL', c: 'dl' }, 20: { t: 'DL', c: 'dl' }, 36: { t: 'DL', c: 'dl' }, 40: { t: 'DL', c: 'dl' }, 80: { t: 'DL', c: 'dl' }, 84: { t: 'DL', c: 'dl' }, 100: { t: 'DL', c: 'dl' }, 108: { t: 'DL', c: 'dl' }, 16: { t: 'DW', c: 'dw' }, 48: { t: 'DW', c: 'dw' }, 50: { t: 'DW', c: 'dw' }, 56: { t: 'DW', c: 'dw' }, 104: { t: 'DW', c: 'dw' }, 64: { t: 'DW', c: 'dw' }, 70: { t: 'DW', c: 'dw' }, 72: { t: 'DW', c: 'dw' }, 26: { t: 'DD', c: 'dd' }, 28: { t: 'DD', c: 'dd' }, 46: { t: 'DD', c: 'dd' }, 52: { t: 'DD', c: 'dd' }, 68: { t: 'DD', c: 'dd' }, 74: { t: 'DD', c: 'dd' }, 92: { t: 'DD', c: 'dd' }, 94: { t: 'DD', c: 'dd' } };
 
         for (let i = 0; i < 121; i++) {
             const cell = document.createElement('div');
@@ -146,23 +137,11 @@
             grid.appendChild(cell);
         }
 
-        // --- 2. Corrected Point Distribution ---
-        const points = {'E':1,'A':1,'I':1,'O':1,'N':1,'R':1,'T':1,'L':1,'S':1,'D':2,'U':2,'G':2,'H':3,'M':3,'Y':3,'B':4,'C':4,'F':4,'P':4,'W':4,'K':5,'V':5,'J':8,'X':8,'Q':10,'Z':10,'?':0};
-        const distribution = [
-            {l:'E',v:1,q:10},{l:'A',v:1,q:8},{l:'I',v:1,q:7},{l:'O',v:1,q:7},{l:'N',v:1,q:5},{l:'R',v:1,q:5},{l:'T',v:1,q:5},{l:'L',v:1,q:4},{l:'S',v:1,q:4},
-            {l:'D',v:2,q:4},{l:'U',v:2,q:4},{l:'G',v:2,q:3},
-            {l:'H',v:3,q:2},{l:'M',v:3,q:2},{l:'Y',v:3,q:2},
-            {l:'B',v:4,q:2},{l:'C',v:4,q:2},{l:'F',v:4,q:2},{l:'P',v:4,q:2},{l:'W',v:4,q:2},
-            {l:'K',v:5,q:1},{l:'V',v:5,q:2},
-            {l:'J',v:8,q:1},{l:'X',v:8,q:1},
-            {l:'Q',v:10,q:1},{l:'Z',v:10,q:1},
-            {l:'?',v:0,q:2}
-        ];
-
+        const distribution = [{l:'E',v:1,q:10},{l:'A',v:1,q:8},{l:'I',v:1,q:7},{l:'O',v:1,q:7},{l:'N',v:1,q:5},{l:'R',v:1,q:5},{l:'T',v:1,q:5},{l:'L',v:1,q:4},{l:'S',v:1,q:4},{l:'D',v:2,q:4},{l:'U',v:2,q:4},{l:'G',v:2,q:3},{l:'H',v:3,q:2},{l:'M',v:3,q:2},{l:'Y',v:3,q:2},{l:'B',v:4,q:2},{l:'C',v:4,q:2},{l:'F',v:4,q:2},{l:'P',v:4,q:2},{l:'W',v:4,q:2},{l:'K',v:5,q:1},{l:'V',v:5,q:2},{l:'J',v:8,q:1},{l:'X',v:8,q:1},{l:'Q',v:10,q:1},{l:'Z',v:10,q:1},{l:'?',v:0,q:2}];
         let bag = [];
         distribution.forEach(item => { for(let i=0; i<item.q; i++) bag.push({...item}); });
 
-        // --- 3. Dictionary Loader ---
+        // --- 2. Lexicon Loader ---
         async function loadLexicon() {
             try {
                 const response = await fetch(DICTIONARY_URL);
@@ -176,17 +155,17 @@
             }
         }
 
-        // --- 4. Logic & Movement ---
-        function clearInvalidStyles(el) { el.classList.remove('invalid', 'edge-top', 'edge-bottom', 'edge-left', 'edge-right', 'valid-word'); }
+        // --- 3. Core Logic ---
+        function clearStyles(el) { el.classList.remove('invalid', 'valid-word'); }
 
         function validatePlacement() {
-            placedTiles.forEach(t => clearInvalidStyles(t.el));
+            placedTiles.forEach(t => clearStyles(t.el));
             if (placedTiles.length < 1) return true;
             const rows = placedTiles.map(t => Math.floor(t.index / 11));
             const cols = placedTiles.map(t => t.index % 11);
-            const isHorizontal = rows.every(r => r === rows[0]);
-            const isVertical = cols.every(c => c === cols[0]);
-            if (placedTiles.length > 1 && !isHorizontal && !isVertical) {
+            const isH = rows.every(r => r === rows[0]);
+            const isV = cols.every(c => c === cols[0]);
+            if (placedTiles.length > 1 && !isH && !isV) {
                 placedTiles.forEach(t => t.el.classList.add('invalid'));
                 return false;
             }
@@ -201,8 +180,7 @@
                 const t = document.createElement('div');
                 t.className = 'tile';
                 t.innerHTML = `<span>${data.l==='?'?'':data.l}</span><span class="val">${data.v}</span>`;
-                t.dataset.letter = data.l; t.dataset.value = data.v;
-                t.dataset.origLeft = `${rackStart + (i * 50)}px`;
+                t.dataset.letter = data.l; t.dataset.origLeft = `${rackStart + (i * 50)}px`;
                 t.style.left = t.dataset.origLeft; t.style.bottom = `40px`;
                 addDragListeners(t);
                 document.body.appendChild(t);
@@ -218,7 +196,7 @@
                 offsetX = touch.clientX - rect.left;
                 offsetY = touch.clientY - rect.top;
                 if(el.parentElement.classList.contains('cell')) {
-                    el.parentElement.classList.remove('occupied');
+                    el.parentElement.classList.remove('occupied'); // Unlock cell on pick-up
                     placedTiles = placedTiles.filter(p => p.el !== el);
                     document.body.appendChild(el);
                     el.classList.remove('on-board');
@@ -244,6 +222,7 @@
                 const target = document.elementFromPoint(rect.left + 21, rect.top + 21);
                 el.style.display = 'flex';
                 const cell = target?.closest('.cell');
+                // IMPORTANT: Cannot drop on an already occupied cell (where a word is locked)
                 if (cell && !cell.classList.contains('occupied')) {
                     el.classList.add('on-board'); cell.appendChild(el); cell.classList.add('occupied');
                     placedTiles.push({ el: el, index: parseInt(cell.dataset.index) });
@@ -259,37 +238,26 @@
         }
 
         function returnToHand(el, delay = 0) {
-            clearInvalidStyles(el);
+            clearStyles(el);
             const rect = el.getBoundingClientRect();
             if (el.parentElement.classList.contains('cell')) {
+                el.parentElement.classList.remove('occupied');
                 document.body.appendChild(el);
                 el.style.left = `${rect.left}px`; el.style.top = `${rect.top}px`;
             }
             el.classList.remove('on-board'); el.style.position = 'absolute'; el.style.zIndex = '200';
             setTimeout(() => {
-                el.style.transition = 'all 0.5s cubic-bezier(0.5, -0.5, 0.2, 1.5), transform 0.5s ease';
+                el.style.transition = 'all 0.5s cubic-bezier(0.5, -0.5, 0.2, 1.5)';
                 el.style.left = el.dataset.origLeft; el.style.bottom = '40px'; el.style.top = 'auto';
                 el.style.transform = `rotate(${(Math.random()*20)-10}deg) scale(1.1)`;
                 setTimeout(() => { 
                     el.style.transition = 'all 0.2s ease'; el.style.transform = 'rotate(0deg) scale(1)'; el.style.zIndex = '10';
-                    setTimeout(() => { el.style.transition = ''; validatePlacement(); }, 200);
+                    setTimeout(() => { el.style.transition = ''; }, 200);
                 }, 500);
             }, delay);
         }
 
-        // --- 5. Controls & Success Glow ---
-        shuffleBtn.addEventListener('click', () => {
-            const handTiles = [...document.querySelectorAll('.tile:not(.on-board):not(.locked)')];
-            const pos = handTiles.map(t => t.dataset.origLeft).sort(() => Math.random() - 0.5);
-            handTiles.forEach((t, i) => { t.dataset.origLeft = pos[i]; returnToHand(t, i * 30); });
-        });
-
-        recallBtn.addEventListener('click', () => {
-            const board = [...document.querySelectorAll('.tile.on-board')];
-            placedTiles = [];
-            board.forEach((t, i) => { t.parentElement.classList.remove('occupied'); returnToHand(t, i * 50); });
-        });
-
+        // --- 4. Success & Locking ---
         playBtn.addEventListener('click', () => {
             if (!validatePlacement() || placedTiles.length === 0) return;
             const sorted = [...placedTiles].sort((a,b) => a.index - b.index);
@@ -297,23 +265,35 @@
             
             if (dictionary.has(word)) {
                 status.innerText = `ACCEPTED: ${word}`;
-                // Wave Glow Animation
                 sorted.forEach((t, i) => {
-                    setTimeout(() => t.el.classList.add('valid-word'), i * 100);
+                    setTimeout(() => t.el.classList.add('valid-word'), i * 80);
                 });
-                // Final Lock
+                // Final Permanent Lock
                 setTimeout(() => {
                     placedTiles.forEach(t => {
                         t.el.classList.remove('valid-word');
-                        t.el.classList.add('locked');
+                        t.el.classList.add('locked'); // CSS blocks all interactions
                         t.el.classList.remove('on-board');
+                        t.el.parentElement.classList.add('occupied'); // Prevent future drops
                     });
-                    placedTiles = [];
-                }, 1200);
+                    placedTiles = []; // Clear for next turn
+                }, 1000);
             } else {
                 status.innerText = `UNKNOWN: ${word}`;
                 placedTiles.forEach(t => t.el.classList.add('invalid'));
             }
+        });
+
+        shuffleBtn.addEventListener('click', () => {
+            const hand = [...document.querySelectorAll('.tile:not(.on-board):not(.locked)')];
+            const pos = hand.map(t => t.dataset.origLeft).sort(() => Math.random() - 0.5);
+            hand.forEach((t, i) => { t.dataset.origLeft = pos[i]; returnToHand(t, i * 30); });
+        });
+
+        recallBtn.addEventListener('click', () => {
+            const board = [...document.querySelectorAll('.tile.on-board')];
+            placedTiles = [];
+            board.forEach((t, i) => returnToHand(t, i * 50));
         });
 
         loadLexicon();

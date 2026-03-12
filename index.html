@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Blitz Cross: Double-Double Edition</title>
+    <title>Blitz Cross: Reflow Edition</title>
     <style>
         :root {
             --bg: #000000;
             --grid-line: rgba(255, 255, 255, 0.15);
-            --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F; --dd: #FFD700;
+            --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F;
         }
         * { box-sizing: border-box; }
         body { 
@@ -20,7 +20,7 @@
         }
         header { width: 100%; padding: 10px; text-align: center; border-bottom: 1px solid #111; }
         .score-box { font-size: 1.5rem; font-weight: 900; letter-spacing: 2px; color: #FFD700; text-shadow: 0 0 10px rgba(255,215,0,0.5); }
-        .status-msg { font-size: 0.7rem; letter-spacing: 3px; opacity: 0.8; margin-top: 5px; text-transform: uppercase; min-height: 1em;}
+        .status-msg { font-size: 0.7rem; letter-spacing: 3px; opacity: 0.8; margin-top: 5px; text-transform: uppercase; min-height: 1.2em;}
 
         .grid { 
             display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); 
@@ -35,8 +35,6 @@
         .dw { color: var(--dw); box-shadow: inset 0 0 8px var(--dw); }
         .tw { color: var(--tw); box-shadow: inset 0 0 8px var(--tw); }
 
-        .cell.occupied.s { color: transparent; box-shadow: none; background: var(--bg); }
-
         .controls { width: 100%; display: flex; justify-content: center; gap: 8px; padding: 10px; }
         .btn {
             background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2);
@@ -46,7 +44,7 @@
         .btn:active { transform: scale(0.9); background: rgba(255, 255, 255, 0.15); }
         .btn.primary { background: #fff; color: #000; border: none; }
 
-        .rack { display: flex; gap: 8px; width: 100%; justify-content: center; min-height: 60px; pointer-events: none;}
+        .rack-area { width: 100%; height: 80px; position: relative; display: flex; justify-content: center; }
 
         .tile {
             width: 44px; height: 44px;
@@ -55,26 +53,25 @@
             display: flex; align-items: center; justify-content: center;
             color: #000; font-size: 22px; font-weight: 900; position: absolute;
             cursor: grab; z-index: 10; user-select: none; pointer-events: auto;
+            transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.4s ease, transform 0.2s ease;
         }
-        .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; }
+        .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; transition: none; }
         .tile.locked { opacity: 1; pointer-events: none; background: #eee; border: 0.5px solid #000; }
-        .tile.invalid { box-shadow: 0 0 20px #ff0000 !important; }
-
+        .tile.dragging { transition: none; opacity: 0.8; transform: scale(1.2); z-index: 100; pointer-events: none; }
+        
         @keyframes successPulse {
             0% { transform: scale(1); box-shadow: 0 0 5px #fff; }
             50% { transform: scale(1.1); box-shadow: 0 0 30px #fff; }
             100% { transform: scale(1); box-shadow: 0 0 5px #fff; }
         }
         .tile.valid-word { animation: successPulse 0.6s ease-in-out; border: 2px solid #fff !important; }
-        
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 9px; color: rgba(0,0,0,0.6); }
-        .dragging { opacity: 0.8; transform: scale(1.2); z-index: 100; pointer-events: none; }
     </style>
 </head>
 <body>
     <header>
         <div class="score-box" id="total-score">000</div>
-        <div class="status-msg" id="status">CONNECTING LEXICON...</div>
+        <div class="status-msg" id="status">INITIALIZING...</div>
     </header>
 
     <div class="grid" id="grid"></div>
@@ -85,7 +82,7 @@
         <button id="play-btn" class="btn primary">Play Word</button>
     </div>
     
-    <div class="rack" id="rack"></div>
+    <div class="rack-area" id="rack-container"></div>
 
     <script>
         const grid = document.getElementById('grid');
@@ -113,76 +110,80 @@
         const distribution = [{l:'E',v:1,q:10},{l:'A',v:1,q:8},{l:'I',v:1,q:7},{l:'O',v:1,q:7},{l:'N',v:1,q:5},{l:'R',v:1,q:5},{l:'T',v:1,q:5},{l:'L',v:1,q:4},{l:'S',v:1,q:4},{l:'D',v:2,q:4},{l:'U',v:2,q:4},{l:'G',v:2,q:3},{l:'H',v:3,q:2},{l:'M',v:3,q:2},{l:'Y',v:3,q:2},{l:'B',v:4,q:2},{l:'C',v:4,q:2},{l:'F',v:4,q:2},{l:'P',v:4,q:2},{l:'W',v:4,q:2},{l:'K',v:5,q:1},{l:'V',v:5,q:2},{l:'J',v:8,q:1},{l:'X',v:8,q:1},{l:'Q',v:10,q:1},{l:'Z',v:10,q:1},{l:'?',v:0,q:2}];
         let bag = [];
         distribution.forEach(item => { for(let i=0; i<item.q; i++) bag.push({...item}); });
+        bag.sort(() => Math.random() - 0.5);
 
         async function loadLexicon() {
             try {
                 const response = await fetch(DICTIONARY_URL);
                 const text = await response.text();
                 dictionary = new Set(text.split('\n').map(w => w.trim().toUpperCase()).filter(w => w.length >= 2));
-                status.innerText = "READY TO BLITZ";
-            } catch (e) { status.innerText = "OFFLINE MODE"; }
+                status.innerText = "READY";
+            } catch (e) { status.innerText = "OFFLINE"; }
         }
 
-        // --- UPDATED DOUBLE-DOUBLE SCORING ---
-        function calculateScore(tiles) {
-            let wordMultiplier = 1;
-            let letterSum = 0;
-            let multipliersFound = { dl: false, dw: false };
+        // --- RACK REFLOW & REFILL LOGIC ---
+        function refillAndReflow() {
+            const currentHand = Array.from(document.querySelectorAll('.tile:not(.on-board):not(.locked)'));
+            const tilesNeeded = 7 - currentHand.length;
+            const tileWidth = 50; 
+            
+            // 1. Calculate new center-aligned positions for EVERYONE
+            // If bag is empty, we only reflow the remaining tiles
+            const totalTilesAfterRefill = currentHand.length + Math.min(tilesNeeded, bag.length);
+            const rackWidth = totalTilesAfterRefill * tileWidth;
+            const startX = (window.innerWidth / 2) - (rackWidth / 2);
 
-            tiles.forEach(t => {
-                let val = parseInt(t.el.dataset.value);
-                const cell = t.el.parentElement;
-
-                // Letter Multipliers
-                if (cell.classList.contains('dl')) {
-                    val *= 2;
-                    multipliersFound.dl = true;
-                } else if (cell.classList.contains('tl')) {
-                    val *= 3;
-                }
-
-                // Word Multipliers
-                if (cell.classList.contains('dw') || cell.classList.contains('s')) {
-                    wordMultiplier *= 2;
-                    multipliersFound.dw = true;
-                } else if (cell.classList.contains('tw')) {
-                    wordMultiplier *= 3;
-                }
-
-                letterSum += val;
+            // 2. Reflow existing tiles first
+            currentHand.forEach((t, i) => {
+                const newPos = `${startX + (i * tileWidth)}px`;
+                t.dataset.origLeft = newPos;
+                t.style.left = newPos;
+                t.style.bottom = "20px";
             });
 
-            let total = letterSum * wordMultiplier;
-
-            // Check for Double-Double alert
-            if (multipliersFound.dl && multipliersFound.dw) {
-                status.innerText = "DOUBLE-DOUBLE!";
-            }
-
-            if (tiles.length === 7) {
-                total += 40;
-                status.innerText = "BINGO! +40 BONUS";
-            }
-            return total;
-        }
-
-        function refillHand() {
-            const current = document.querySelectorAll('.tile:not(.locked)');
-            const needed = 7 - current.length;
-            const rackStart = window.innerWidth / 2 - 175;
-            const usedPos = Array.from(current).map(t => t.dataset.origLeft);
-            const emptyPos = Array.from({length: 7}, (_, i) => `${rackStart + (i * 50)}px`).filter(p => !usedPos.includes(p));
-
-            for (let i = 0; i < Math.min(needed, bag.length); i++) {
+            // 3. Draw new tiles into the remaining slots
+            for (let i = 0; i < Math.min(tilesNeeded, bag.length); i++) {
                 const data = bag.pop();
                 const t = document.createElement('div');
+                const slotIndex = currentHand.length + i;
+                const finalPos = `${startX + (slotIndex * tileWidth)}px`;
+
                 t.className = 'tile';
                 t.innerHTML = `<span>${data.l==='?'?'':data.l}</span><span class="val">${data.v}</span>`;
-                t.dataset.letter = data.l; t.dataset.value = data.v; t.dataset.origLeft = emptyPos[i];
-                t.style.left = emptyPos[i]; t.style.bottom = "-60px";
-                addDrag(t); document.body.appendChild(t);
-                setTimeout(() => { t.style.transition = '0.5s cubic-bezier(0.17,0.88,0.32,1.2)'; t.style.bottom = "40px"; }, i * 100);
+                t.dataset.letter = data.l; t.dataset.value = data.v; t.dataset.origLeft = finalPos;
+                
+                // Fly in animation
+                t.style.left = finalPos;
+                t.style.bottom = "-80px"; 
+                addDrag(t);
+                document.body.appendChild(t);
+                
+                setTimeout(() => { t.style.bottom = "20px"; }, i * 100);
             }
+            if (bag.length === 0 && totalTilesAfterRefill === 0) status.innerText = "GAME OVER";
+        }
+
+        // --- SCORING ---
+        function calculateFullWordScore(fullWordArray) {
+            let wordMultiplier = 1; let letterSum = 0;
+            let multipliersFound = { dl: false, dw: false };
+
+            fullWordArray.forEach(t => {
+                let val = parseInt(t.el.dataset.value);
+                const isNew = !t.el.classList.contains('locked');
+                if (isNew) {
+                    const cell = t.el.parentElement;
+                    if (cell.classList.contains('dl')) { val *= 2; multipliersFound.dl = true; }
+                    else if (cell.classList.contains('tl')) val *= 3;
+                    if (cell.classList.contains('dw') || cell.classList.contains('s')) { wordMultiplier *= 2; multipliersFound.dw = true; }
+                    else if (cell.classList.contains('tw')) wordMultiplier *= 3;
+                }
+                letterSum += val;
+            });
+            let total = letterSum * wordMultiplier;
+            if (placedTiles.length === 7) total += 40;
+            if (multipliersFound.dl && multipliersFound.dw) status.innerText = "DOUBLE-DOUBLE!";
+            return total;
         }
 
         function addDrag(el) {
@@ -200,10 +201,6 @@
                     el.style.position = 'absolute'; el.style.left = `${r.left}px`; el.style.top = `${r.top}px`;
                 }
                 el.classList.add('dragging');
-                if(el.dataset.letter === '?' && el.querySelector('span').innerText === '') {
-                    let c = prompt("Wild Card:");
-                    if(c) el.querySelector('span').innerText = c.toUpperCase();
-                }
             };
             const move = (e) => {
                 if (!el.classList.contains('dragging')) return;
@@ -227,67 +224,89 @@
         }
 
         function returnHome(el, d = 0) {
-            if (el.parentElement.classList.contains('cell')) el.parentElement.classList.remove('occupied');
+            if (el.parentElement?.classList.contains('cell')) el.parentElement.classList.remove('occupied');
             document.body.appendChild(el);
             el.classList.remove('on-board'); el.style.zIndex = '200';
             setTimeout(() => {
-                el.style.transition = '0.5s ease'; el.style.left = el.dataset.origLeft; el.style.bottom = '40px'; el.style.top = 'auto';
-                setTimeout(() => { el.style.transition = ''; el.style.zIndex = '10'; }, 500);
+                el.style.left = el.dataset.origLeft; el.style.bottom = '20px'; el.style.top = 'auto';
+                setTimeout(() => { el.style.zIndex = '10'; }, 400);
             }, d);
         }
 
         playBtn.addEventListener('click', () => {
             if (placedTiles.length === 0) return;
             const sorted = [...placedTiles].sort((a,b) => a.index - b.index);
-            const word = sorted.map(t => t.el.querySelector('span').innerText).join('');
-            
-            if (!dictionary.has(word)) {
-                status.innerText = `INVALID: ${word}`;
-                placedTiles.forEach(t => t.el.classList.add('invalid'));
-                return;
+            const r = sorted.map(t => Math.floor(t.index / 11));
+            const c = sorted.map(t => t.index % 11);
+            const isH = r.every(v => v === r[0]);
+            const isV = c.every(v => v === c[0]);
+            if (!isH && !isV && sorted.length > 1) { status.innerText = "ALIGN TILES"; return; }
+
+            let fullWordTiles = [];
+            const step = isH || sorted.length === 1 ? 1 : 11;
+            let currentIdx = sorted[0].index;
+            while (currentIdx - step >= 0) {
+                const prev = document.querySelector(`.cell[data-index="${currentIdx - step}"]`);
+                if (prev?.classList.contains('occupied')) {
+                    if (isH && Math.floor((currentIdx-step)/11) !== Math.floor(currentIdx/11)) break;
+                    currentIdx -= step;
+                } else break;
             }
+            while (currentIdx < 121) {
+                const cell = document.querySelector(`.cell[data-index="${currentIdx}"]`);
+                if (cell?.classList.contains('occupied')) {
+                    fullWordTiles.push({ el: cell.querySelector('.tile'), index: currentIdx });
+                    if (isH && Math.floor((currentIdx+step)/11) !== Math.floor(currentIdx/11)) break;
+                    currentIdx += step;
+                } else if (sorted.some(t => t.index > currentIdx)) { currentIdx += step; continue; } 
+                else break;
+            }
+
+            const wordStr = fullWordTiles.map(t => t.el.querySelector('span').innerText).join('');
+            if (!dictionary.has(wordStr)) { status.innerText = `INVALID: ${wordStr}`; return; }
 
             const locked = document.querySelectorAll('.tile.locked');
             const connected = locked.length === 0 ? placedTiles.some(t => t.index === 60) :
                 placedTiles.some(t => [t.index-1, t.index+1, t.index-11, t.index+11].some(n => {
                     const c = document.querySelector(`.cell[data-index="${n}"]`);
-                    return c && c.querySelector('.tile.locked');
+                    return c?.querySelector('.tile.locked');
                 }));
 
-            if (!connected) {
-                status.innerText = locked.length === 0 ? "START AT CENTER" : "CONNECT TILES";
-                return;
-            }
+            if (!connected) { status.innerText = "CONNECT TILES"; return; }
 
-            const points = calculateScore(placedTiles);
+            const points = calculateFullWordScore(fullWordTiles);
             totalScore += points;
             totalScoreEl.innerText = totalScore.toString().padStart(3, '0');
-            if (!status.innerText.includes("BINGO") && !status.innerText.includes("DOUBLE")) {
-                status.innerText = `+${points} POINTS!`;
-            }
+            if (!status.innerText.includes("BINGO") && !status.innerText.includes("DOUBLE")) status.innerText = `+${points}`;
 
-            sorted.forEach((t, i) => setTimeout(() => t.el.classList.add('valid-word'), i * 80));
-            setTimeout(() => {
-                placedTiles.forEach(t => {
-                    t.el.classList.remove('valid-word'); t.el.classList.add('locked');
+            placedTiles.forEach((t, i) => {
+                setTimeout(() => {
+                    t.el.classList.add('valid-word', 'locked');
                     t.el.parentElement.classList.add('occupied');
-                });
-                placedTiles = []; refillHand();
+                }, i * 80);
+            });
+
+            setTimeout(() => {
+                placedTiles.forEach(t => t.el.classList.remove('valid-word'));
+                placedTiles = []; 
+                refillAndReflow(); // Trigger the center-aligned reflow
             }, 1000);
         });
 
         shuffleBtn.addEventListener('click', () => {
             const hand = [...document.querySelectorAll('.tile:not(.on-board):not(.locked)')];
-            const pos = hand.map(t => t.dataset.origLeft).sort(() => Math.random() - 0.5);
-            hand.forEach((t, i) => { t.dataset.origLeft = pos[i]; returnHome(t, i * 30); });
+            hand.sort(() => Math.random() - 0.5);
+            refillAndReflow();
         });
 
         recallBtn.addEventListener('click', () => {
             const onB = [...document.querySelectorAll('.tile.on-board')];
-            placedTiles = []; onB.forEach((t, i) => returnHome(t, i * 50));
+            placedTiles = []; 
+            onB.forEach((t) => returnHome(t));
+            setTimeout(refillAndReflow, 500);
         });
 
-        loadLexicon(); bag.sort(() => Math.random() - 0.5); refillHand();
+        loadLexicon(); refillAndReflow();
     </script>
 </body>
 </html>

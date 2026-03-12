@@ -3,39 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Blitz Cross: 8-DD Edition</title>
+    <title>Blitz Cross: Obsidian</title>
     <style>
         :root {
             --bg: #000000;
             --grid-line: rgba(255, 255, 255, 0.15);
             --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F; --dd: #FFD700;
         }
-        body { background: var(--bg); color: #fff; margin: 0; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow: hidden; touch-action: none; }
-        header { width: 100%; padding: 15px; text-align: center; letter-spacing: 5px; font-weight: 900; border-bottom: 1px solid #111; font-size: 1.2rem; }
+        body { 
+            background: var(--bg); color: #fff; margin: 0; font-family: 'Inter', sans-serif; 
+            display: flex; flex-direction: column; align-items: center; min-height: 100vh; 
+            overflow: hidden; touch-action: none; 
+        }
+        header { width: 100%; padding: 15px; text-align: center; letter-spacing: 5px; font-weight: 900; border-bottom: 1px solid #111; }
         
         .grid { 
             display: grid; grid-template-columns: repeat(11, 1fr); 
-            width: 92vw; max-width: 480px; aspect-ratio: 1/1; 
+            width: 94vw; max-width: 480px; aspect-ratio: 1/1; 
             background: var(--grid-line); gap: 1px; border: 1px solid var(--grid-line); margin-top: 15px;
         }
-        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 900; position: relative; }
+        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 900; }
         
-        /* Premium Glows */
-        .s { background: #fff; color: #000; box-shadow: 0 0 25px #fff; border-radius: 2px; font-size: 16px; z-index: 2; }
+        /* The Luxury Glows */
+        .s { background: #fff; color: #000; box-shadow: 0 0 20px #fff; border-radius: 2px; font-size: 14px; z-index: 2; }
         .dl { color: var(--dl); box-shadow: inset 0 0 10px var(--dl); }
         .tl { color: var(--tl); box-shadow: inset 0 0 10px var(--tl); }
         .dw { color: var(--dw); box-shadow: inset 0 0 10px var(--dw); }
         .tw { color: var(--tw); box-shadow: inset 0 0 10px var(--tw); }
-        .dd { color: var(--dd); box-shadow: inset 0 0 15px var(--dd), 0 0 10px rgba(255,215,0,0.4); border: 1px solid var(--dd); font-size: 10px; z-index: 1; }
+        .dd { color: var(--dd); box-shadow: inset 0 0 15px var(--dd), 0 0 8px rgba(255,215,0,0.3); border: 1px solid var(--dd); font-size: 10px; z-index: 1; }
 
-        .rack { margin-top: auto; margin-bottom: 40px; display: flex; gap: 8px; padding: 10px; }
+        .rack { margin-top: auto; margin-bottom: 30px; display: flex; gap: 6px; padding: 10px; }
         .tile {
-            width: 46px; height: 46px; background: linear-gradient(145deg, #2a2a2a, #000);
-            border-radius: 12px; border: 1px solid #444; display: flex; align-items: center; 
-            justify-content: center; font-size: 22px; font-weight: 900; box-shadow: 0 6px 12px #000;
+            width: 42px; height: 42px; background: linear-gradient(145deg, #222, #000);
+            border-radius: 10px; border: 1px solid #333; display: flex; align-items: center; 
+            justify-content: center; font-size: 18px; font-weight: 900; box-shadow: 0 5px 10px #000;
             position: relative;
         }
-        .val { position: absolute; bottom: 4px; right: 6px; font-size: 8px; color: #777; }
+        .val { position: absolute; bottom: 3px; right: 5px; font-size: 7px; color: #666; }
     </style>
 </head>
 <body>
@@ -45,20 +49,29 @@
 
     <script>
         const grid = document.getElementById('grid');
+        
+        // COORDINATE MAP FROM BLUEPRINT 11327.png
         const layout = {
-            60: { t: '✦', c: 's' },
-            // THE 8 DD SQUARES
+            60: { t: '✦', c: 's' }, // Center
+            // 8 DD (Gold) - Corners + Midpoints
             0: { t: 'DD', c: 'dd' }, 10: { t: 'DD', c: 'dd' }, 110: { t: 'DD', c: 'dd' }, 120: { t: 'DD', c: 'dd' },
             5: { t: 'DD', c: 'dd' }, 115: { t: 'DD', c: 'dd' }, 55: { t: 'DD', c: 'dd' }, 65: { t: 'DD', c: 'dd' },
             
-            // Other Bonuses (Symmetrical Pattern)
-            27: { t: 'TW', c: 'tw' }, 33: { t: 'TW', c: 'tw' }, 87: { t: 'TW', c: 'tw' }, 93: { t: 'TW', c: 'tw' },
-            37: { t: 'DW', c: 'dw' }, 39: { t: 'DW', c: 'dw' }, 49: { t: 'DW', c: 'dw' }, 51: { t: 'DW', c: 'dw' },
-            69: { t: 'DW', c: 'dw' }, 71: { t: 'DW', c: 'dw' }, 81: { t: 'DW', c: 'dw' }, 83: { t: 'DW', c: 'dw' },
+            // TW (Red)
+            13: { t: 'TW', c: 'tw' }, 19: { t: 'TW', c: 'tw' }, 101: { t: 'TW', c: 'tw' }, 107: { t: 'TW', c: 'tw' },
+            
+            // DW (Orange) - The Diamond Frame
+            37: { t: 'DW', c: 'dw' }, 39: { t: 'DW', c: 'dw' }, 48: { t: 'DW', c: 'dw' }, 50: { t: 'DW', c: 'dw' },
+            52: { t: 'DW', c: 'dw' }, 70: { t: 'DW', c: 'dw' }, 81: { t: 'DW', c: 'dw' }, 83: { t: 'DW', c: 'dw' },
+            
+            // TL (Purple) - Outer Power Clusters
             24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' }, 90: { t: 'TL', c: 'tl' }, 96: { t: 'TL', c: 'tl' },
-            12: { t: 'TL', c: 'tl' }, 20: { t: 'TL', c: 'tl' }, 100: { t: 'TL', c: 'tl' }, 108: { t: 'TL', c: 'tl' },
-            2: { t: 'DL', c: 'dl' }, 8: { t: 'DL', c: 'dl' }, 44: { t: 'DL', c: 'dl' }, 54: { t: 'DL', c: 'dl' },
-            66: { t: 'DL', c: 'dl' }, 76: { t: 'DL', c: 'dl' }, 112: { t: 'DL', c: 'dl' }, 118: { t: 'DL', c: 'dl' }
+            40: { t: 'TL', c: 'tl' }, 42: { t: 'TL', c: 'tl' }, 78: { t: 'TL', c: 'tl' }, 80: { t: 'TL', c: 'tl' },
+            
+            // DL (Cyan) - Grid Fill
+            2: { t: 'DL', c: 'dl' }, 8: { t: 'DL', c: 'dl' }, 26: { t: 'DL', c: 'dl' }, 34: { t: 'DL', c: 'dl' },
+            44: { t: 'DL', c: 'dl' }, 54: { t: 'DL', c: 'dl' }, 66: { t: 'DL', c: 'dl' }, 76: { t: 'DL', c: 'dl' },
+            86: { t: 'DL', c: 'dl' }, 94: { t: 'DL', c: 'dl' }, 112: { t: 'DL', c: 'dl' }, 118: { t: 'DL', c: 'dl' }
         };
 
         for (let i = 0; i < 121; i++) {

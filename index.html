@@ -48,18 +48,23 @@
             display: flex; align-items: center; justify-content: center;
             color: #000; font-size: 20px; font-weight: 900; position: absolute;
             cursor: grab; z-index: 10; user-select: none; pointer-events: auto;
-            transition: transform 0.1s, opacity 0.1s;
         }
         
-        /* Tile on board state */
+        /* Edge-to-edge on board */
         .tile.on-board { 
             position: absolute; width: 100%; height: 100%; 
             border-radius: 0; font-size: 18px; box-shadow: none; border: none;
-            left: 0 !important; top: 0 !important; transform: none !important;
+            left: 0 !important; top: 0 !important;
+        }
+
+        /* INVALID STATE: Red Glow Outline */
+        .tile.invalid {
+            box-shadow: inset 0 0 0 3px #ff0000, 0 0 15px #ff0000 !important;
+            border: 1px solid #ff0000 !important;
         }
         
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; color: rgba(0,0,0,0.7); }
-        .dragging { opacity: 0.9; transform: scale(1.15); z-index: 100; pointer-events: none; transition: none; }
+        .dragging { opacity: 0.9; transform: scale(1.1); z-index: 100; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -70,6 +75,7 @@
     <script>
         const grid = document.getElementById('grid');
         const status = document.getElementById('status');
+        let placedTiles = []; // Tracks tiles placed this turn
 
         const layout = {
             60: { t: '✦', c: 's' }, 0: { t: 'TL', c: 'tl' }, 10: { t: 'TL', c: 'tl' }, 24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' },
@@ -103,6 +109,27 @@
         distribution.forEach(item => { for(let i=0; i<item.q; i++) bag.push({...item}); });
         bag.sort(() => Math.random() - 0.5);
 
+        function validatePlacement() {
+            if (placedTiles.length < 2) {
+                placedTiles.forEach(t => t.el.classList.remove('invalid'));
+                return true;
+            }
+            const rows = placedTiles.map(t => Math.floor(t.index / 11));
+            const cols = placedTiles.map(t => t.index % 11);
+            const isHorizontal = rows.every(r => r === rows[0]);
+            const isVertical = cols.every(c => c === cols[0]);
+
+            if (!isHorizontal && !isVertical) {
+                placedTiles.forEach(t => t.el.classList.add('invalid'));
+                status.innerText = "INVALID ALIGNMENT";
+                return false;
+            } else {
+                placedTiles.forEach(t => t.el.classList.remove('invalid'));
+                status.innerText = "BLITZ CROSS";
+                return true;
+            }
+        }
+
         function initRack() {
             const screenW = window.innerWidth;
             const rackStart = screenW / 2 - 175;
@@ -113,16 +140,9 @@
                 t.innerHTML = `<span>${data.l==='?'?'':data.l}</span><span class="val">${data.v}</span>`;
                 t.dataset.letter = data.l;
                 t.dataset.value = data.v;
-                
-                // Set and store the 'Hand' position
-                const startLeft = rackStart + (i * 50);
-                const startBottom = 40;
-                t.dataset.origLeft = `${startLeft}px`;
-                t.dataset.origBottom = `${startBottom}px`;
-                
+                t.dataset.origLeft = `${rackStart + (i * 50)}px`;
                 t.style.left = t.dataset.origLeft;
-                t.style.bottom = t.dataset.origBottom;
-                
+                t.style.bottom = `40px`;
                 addDragListeners(t);
                 document.body.appendChild(t);
             }
@@ -136,16 +156,16 @@
                 offsetX = touch.clientX - el.getBoundingClientRect().left;
                 offsetY = touch.clientY - el.getBoundingClientRect().top;
                 
-                // If it was on board, remove the occupied status from old cell
                 if(el.parentElement.classList.contains('cell')) {
                     el.parentElement.classList.remove('occupied');
-                    document.body.appendChild(el); // Move back to body for dragging
+                    placedTiles = placedTiles.filter(p => p.el !== el);
+                    document.body.appendChild(el);
                     el.classList.remove('on-board');
                     el.style.position = 'absolute';
+                    validatePlacement();
                 }
 
                 el.classList.add('dragging');
-                
                 if(el.dataset.letter === '?' && el.querySelector('span').innerText === '') {
                     let c = prompt("Wild Card Letter:");
                     if(c) { 
@@ -168,38 +188,28 @@
             const onEnd = (e) => {
                 if (!el.classList.contains('dragging')) return;
                 el.classList.remove('dragging');
-                
                 const rect = el.getBoundingClientRect();
                 const centerX = rect.left + rect.width/2;
                 const centerY = rect.top + rect.height/2;
-                
                 el.style.display = 'none';
                 const target = document.elementFromPoint(centerX, centerY);
                 el.style.display = 'flex';
-
                 const cell = target?.closest('.cell');
-                
+
                 if (cell && !cell.classList.contains('occupied')) {
-                    // Success: Snap to board
                     el.classList.add('on-board');
                     el.style.left = ''; el.style.top = ''; el.style.bottom = '';
                     cell.appendChild(el);
                     cell.classList.add('occupied');
-                    
-                    if(cell.dataset.index == "60") {
-                        status.innerText = "CENTER COVERED - PLAY ON";
-                    }
+                    placedTiles.push({ el: el, index: parseInt(cell.dataset.index) });
+                    validatePlacement();
                 } else {
-                    // Failure: Drop back into hand
                     el.classList.remove('on-board');
                     el.style.position = 'absolute';
-                    el.style.transition = 'all 0.3s ease'; // Smooth glide back
+                    el.style.transition = 'all 0.3s ease';
                     el.style.left = el.dataset.origLeft;
-                    el.style.bottom = el.dataset.origBottom;
-                    el.style.top = 'auto';
-                    
-                    // Remove transition after glide finished to keep dragging snappy
-                    setTimeout(() => { el.style.transition = ''; }, 300);
+                    el.style.bottom = '40px'; el.style.top = 'auto';
+                    setTimeout(() => el.style.transition = '', 300);
                 }
             };
 

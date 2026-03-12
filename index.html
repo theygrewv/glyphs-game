@@ -25,9 +25,8 @@
             width: 88vw; max-width: 420px; aspect-ratio: 1/1; 
             background: var(--grid-line); gap: 1px; border: 1px solid var(--grid-line);
         }
-        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 900; position: relative; overflow: hidden;}
+        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 900; position: relative; overflow: visible;}
         
-        /* Board Glows */
         .s { background: #fff; color: #000; box-shadow: 0 0 15px #fff; border-radius: 2px; font-size: 12px; z-index: 1; }
         .dl { color: var(--dl); box-shadow: inset 0 0 8px var(--dl); }
         .tl { color: var(--tl); box-shadow: inset 0 0 8px var(--tl); }
@@ -50,18 +49,22 @@
             cursor: grab; z-index: 10; user-select: none; pointer-events: auto;
         }
         
-        /* Edge-to-edge on board */
         .tile.on-board { 
             position: absolute; width: 100%; height: 100%; 
             border-radius: 0; font-size: 18px; box-shadow: none; border: none;
             left: 0 !important; top: 0 !important;
         }
 
-        /* INVALID STATE: Red Glow Outline */
+        /* DYNAMIC INVALID OUTLINE: Unified Word Glow */
         .tile.invalid {
-            box-shadow: inset 0 0 0 3px #ff0000, 0 0 15px #ff0000 !important;
-            border: 1px solid #ff0000 !important;
+            box-shadow: 0 0 15px #ff0000 !important;
+            z-index: 50;
         }
+        /* Remove internal borders for touching invalid tiles to make it look like one shape */
+        .tile.invalid.edge-top { border-top: 3px solid #ff0000 !important; }
+        .tile.invalid.edge-bottom { border-bottom: 3px solid #ff0000 !important; }
+        .tile.invalid.edge-left { border-left: 3px solid #ff0000 !important; }
+        .tile.invalid.edge-right { border-right: 3px solid #ff0000 !important; }
         
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; color: rgba(0,0,0,0.7); }
         .dragging { opacity: 0.9; transform: scale(1.1); z-index: 100; pointer-events: none; }
@@ -75,7 +78,7 @@
     <script>
         const grid = document.getElementById('grid');
         const status = document.getElementById('status');
-        let placedTiles = []; // Tracks tiles placed this turn
+        let placedTiles = [];
 
         const layout = {
             60: { t: '✦', c: 's' }, 0: { t: 'TL', c: 'tl' }, 10: { t: 'TL', c: 'tl' }, 24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' },
@@ -107,34 +110,59 @@
 
         let bag = [];
         distribution.forEach(item => { for(let i=0; i<item.q; i++) bag.push({...item}); });
-        bag.sort(() => Math.random() - 0.5);
+
+        function getStartingHand() {
+            let hand = [];
+            const vowels = ['A', 'E', 'I', 'O', 'U', '?'];
+            let validHand = false;
+            while (!validHand) {
+                bag.sort(() => Math.random() - 0.5);
+                hand = bag.slice(0, 7);
+                let count = hand.filter(t => vowels.includes(t.l)).length;
+                if (count >= 2) { bag.splice(0, 7); validHand = true; }
+            }
+            return hand;
+        }
 
         function validatePlacement() {
-            if (placedTiles.length < 2) {
-                placedTiles.forEach(t => t.el.classList.remove('invalid'));
-                return true;
-            }
+            // Clear old states
+            placedTiles.forEach(t => {
+                t.el.classList.remove('invalid', 'edge-top', 'edge-bottom', 'edge-left', 'edge-right');
+            });
+
+            if (placedTiles.length < 2) return true;
+
             const rows = placedTiles.map(t => Math.floor(t.index / 11));
             const cols = placedTiles.map(t => t.index % 11);
             const isHorizontal = rows.every(r => r === rows[0]);
             const isVertical = cols.every(c => c === cols[0]);
 
             if (!isHorizontal && !isVertical) {
-                placedTiles.forEach(t => t.el.classList.add('invalid'));
+                placedTiles.forEach(t => {
+                    t.el.classList.add('invalid');
+                    const r = Math.floor(t.index / 11);
+                    const c = t.index % 11;
+                    
+                    // Check if neighbors exist in the placedTiles array to determine edges
+                    if (!placedTiles.find(p => p.index === t.index - 11)) t.el.classList.add('edge-top');
+                    if (!placedTiles.find(p => p.index === t.index + 11)) t.el.classList.add('edge-bottom');
+                    if (!placedTiles.find(p => p.index === t.index - 1)) t.el.classList.add('edge-left');
+                    if (!placedTiles.find(p => p.index === t.index + 1)) t.el.classList.add('edge-right');
+                });
                 status.innerText = "INVALID ALIGNMENT";
                 return false;
             } else {
-                placedTiles.forEach(t => t.el.classList.remove('invalid'));
                 status.innerText = "BLITZ CROSS";
                 return true;
             }
         }
 
         function initRack() {
+            const hand = getStartingHand();
             const screenW = window.innerWidth;
             const rackStart = screenW / 2 - 175;
-            for(let i=0; i<7; i++) {
-                const data = bag.pop();
+
+            hand.forEach((data, i) => {
                 const t = document.createElement('div');
                 t.className = 'tile';
                 t.innerHTML = `<span>${data.l==='?'?'':data.l}</span><span class="val">${data.v}</span>`;
@@ -145,17 +173,15 @@
                 t.style.bottom = `40px`;
                 addDragListeners(t);
                 document.body.appendChild(t);
-            }
+            });
         }
 
         function addDragListeners(el) {
             let offsetX, offsetY;
-            
             const onStart = (e) => {
                 const touch = e.type === 'touchstart' ? e.touches[0] : e;
                 offsetX = touch.clientX - el.getBoundingClientRect().left;
                 offsetY = touch.clientY - el.getBoundingClientRect().top;
-                
                 if(el.parentElement.classList.contains('cell')) {
                     el.parentElement.classList.remove('occupied');
                     placedTiles = placedTiles.filter(p => p.el !== el);
@@ -164,17 +190,7 @@
                     el.style.position = 'absolute';
                     validatePlacement();
                 }
-
                 el.classList.add('dragging');
-                if(el.dataset.letter === '?' && el.querySelector('span').innerText === '') {
-                    let c = prompt("Wild Card Letter:");
-                    if(c) { 
-                        el.querySelector('span').innerText = c.toUpperCase(); 
-                        el.dataset.value = 2; 
-                        el.querySelector('.val').innerText = 2; 
-                        el.style.color = '#E0115F';
-                    }
-                }
             };
 
             const onMove = (e) => {
@@ -209,7 +225,7 @@
                     el.style.transition = 'all 0.3s ease';
                     el.style.left = el.dataset.origLeft;
                     el.style.bottom = '40px'; el.style.top = 'auto';
-                    setTimeout(() => el.style.transition = '', 300);
+                    setTimeout(() => { el.style.transition = ''; validatePlacement(); }, 300);
                 }
             };
 

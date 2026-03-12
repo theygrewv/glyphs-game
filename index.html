@@ -3,26 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Blitz Cross: Noir</title>
+    <title>Blitz Cross: Obsidian Edition</title>
     <style>
         :root {
             --bg: #000000;
-            --grid-line: #ffffff22;
-            --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F; --dd: #FFD700;
+            --grid-line: rgba(255, 255, 255, 0.15);
+            --dl: #00FFFF; /* Electric Cyan */
+            --tl: #7851A9; /* Royal Purple */
+            --dw: #FF8C00; /* Sunset Orange */
+            --tw: #E0115F; /* Ruby Red */
+            --dd: #FFD700; /* Polished Gold */
+            --start: #FFFFFF; /* Pure White */
         }
-        body { background: var(--bg); color: #fff; margin: 0; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow: hidden; }
-        
-        /* Perfect Square Grid */
+
+        body { 
+            background: var(--bg); 
+            color: #fff; 
+            margin: 0; 
+            font-family: 'Inter', -apple-system, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            min-height: 100vh; 
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        header {
+            width: 100%;
+            padding: 20px;
+            text-align: center;
+            letter-spacing: 6px;
+            font-weight: 900;
+            font-size: 20px;
+            border-bottom: 1px solid #1a1a1a;
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+
+        /* Perfect Square Grid System */
+        .grid-container {
+            width: 95vw;
+            max-width: 500px;
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
         .grid { 
             display: grid; 
             grid-template-columns: repeat(11, 1fr); 
-            width: 95vw; 
-            max-width: 480px; 
-            aspect-ratio: 1 / 1; /* Forces perfect squares */
+            width: 100%;
+            aspect-ratio: 1 / 1; 
             background: var(--grid-line);
-            gap: 1px; /* The white grid lines */
+            gap: 1px; 
             border: 1px solid var(--grid-line);
-            margin-top: 20px;
         }
 
         .cell { 
@@ -30,65 +64,93 @@
             display: flex; 
             align-items: center; 
             justify-content: center; 
-            font-size: 10px; 
-            font-weight: 900;
+            font-size: 9px; 
+            font-weight: 800;
             position: relative;
+            text-transform: uppercase;
         }
 
-        /* Neon Glow Logic */
-        .dl { color: var(--dl); box-shadow: inset 0 0 15px var(--dl); }
-        .tl { color: var(--tl); box-shadow: inset 0 0 15px var(--tl); }
-        .dw { color: var(--dw); box-shadow: inset 0 0 15px var(--dw); }
-        .tw { color: var(--tw); box-shadow: inset 0 0 15px var(--tw); }
-        .dd { color: var(--dd); box-shadow: inset 0 0 15px var(--dd); border: 1px solid var(--dd); }
-        .start { background: #fff; color: #000; box-shadow: 0 0 20px #fff; }
+        /* Neon Glow Effects */
+        .start { background: var(--start); color: #000; box-shadow: 0 0 20px var(--start); z-index: 1; border-radius: 2px; }
+        .dl { color: var(--dl); box-shadow: inset 0 0 12px var(--dl); }
+        .tl { color: var(--tl); box-shadow: inset 0 0 12px var(--tl); }
+        .dw { color: var(--dw); box-shadow: inset 0 0 12px var(--dw); }
+        .tw { color: var(--tw); box-shadow: inset 0 0 12px var(--tw); }
+        .dd { 
+            color: var(--dd); 
+            box-shadow: inset 0 0 15px var(--dd), 0 0 10px rgba(255,215,0,0.3); 
+            border: 1px solid var(--dd); 
+            font-size: 11px;
+        }
 
         /* Onyx Squircle Tiles */
-        .rack { margin-top: auto; margin-bottom: 40px; display: flex; gap: 10px; }
+        .rack { margin-top: auto; margin-bottom: 40px; display: flex; gap: 10px; padding: 20px; }
         .tile {
-            width: 48px; height: 48px;
-            background: linear-gradient(145deg, #222, #000);
-            border-radius: 12px; /* The Squircle */
-            border: 1px solid #333;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 24px; font-weight: 900;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.5);
+            width: 46px; 
+            height: 46px;
+            background: linear-gradient(145deg, #2a2a2a, #000000);
+            border-radius: 12px; /* Perfect Squircle */
+            border: 1px solid #444;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            font-size: 22px; 
+            font-weight: 900;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1);
+            position: relative;
+            color: #fff;
+        }
+        .val {
+            position: absolute;
+            bottom: 4px;
+            right: 6px;
+            font-size: 8px;
+            color: #888;
         }
     </style>
 </head>
 <body>
-    <div class="grid" id="grid"></div>
+
+    <header>BLITZ CROSS</header>
+
+    <div class="grid-container">
+        <div class="grid" id="grid"></div>
+    </div>
+
     <div class="rack" id="rack"></div>
 
     <script>
         const grid = document.getElementById('grid');
-        // Specific coordinate-based mapping for your 11x11 layout
+        
+        // Exact Layout Mapping from Image 11327.png
         const layout = {
+            // [S] Start Square
             60: { text: 'S', class: 'start' },
+            
+            // DD (Double-Double) - The Power Corners
             0: { text: 'DD', class: 'dd' }, 10: { text: 'DD', class: 'dd' },
             110: { text: 'DD', class: 'dd' }, 120: { text: 'DD', class: 'dd' },
+            
+            // TW (Triple Word) - Symmetrical Cross
             5: { text: 'TW', class: 'tw' }, 55: { text: 'TW', class: 'tw' },
             65: { text: 'TW', class: 'tw' }, 115: { text: 'TW', class: 'tw' },
-            12: { text: 'DL', class: 'dl' }, 20: { text: 'DL', class: 'dl' },
-            100: { text: 'DL', class: 'dl' }, 108: { text: 'DL', class: 'dl' }
-        };
+            
+            // DW (Double Word) - Inner Diamond
+            24: { text: 'DW', class: 'dw' }, 30: { text: 'DW', class: 'dw' },
+            40: { text: 'DW', class: 'dw' }, 48: { text: 'DW', class: 'dw' },
+            72: { text: 'DW', class: 'dw' }, 80: { text: 'DW', class: 'dw' },
+            90: { text: 'DW', class: 'dw' }, 96: { text: 'DW', class: 'dw' },
 
-        for (let i = 0; i < 121; i++) {
-            const cell = document.createElement('div');
-            cell.className = 'cell';
-            if (layout[i]) {
-                cell.innerText = layout[i].text;
-                cell.classList.add(layout[i].class);
-            }
-            grid.appendChild(cell);
-        }
+            // TL (Triple Letter) - Outer Edge Clusters
+            12: { text: 'TL', class: 'tl' }, 20: { text: 'TL', class: 'tl' },
+            38: { text: 'TL', class: 'tl' }, 42: { text: 'TL', class: 'tl' },
+            78: { text: 'TL', class: 'tl' }, 82: { text: 'TL', class: 'tl' },
+            100: { text: 'TL', class: 'tl' }, 108: { text: 'TL', class: 'tl' },
 
-        // Generate Sample Rack
-        ['B','L','I','T','Z'].forEach(l => {
-            const t = document.createElement('div');
-            t.className = 'tile'; t.innerText = l;
-            document.getElementById('rack').appendChild(t);
-        });
-    </script>
-</body>
-</html>
+            // DL (Double Letter) - Pathway Connectors
+            2: { text: 'DL', class: 'dl' }, 8: { text: 'DL', class: 'dl' },
+            22: { text: 'DL', class: 'dl' }, 32: { text: 'DL', class: 'dl' },
+            44: { text: 'DL', class: 'dl' }, 54: { text: 'DL', class: 'dl' },
+            66: { text: 'DL', class: 'dl' }, 76: { text: 'DL', class: 'dl' },
+            88: { text: 'DL', class: 'dl' }, 98: { text: 'DL', class: 'dl' },
+            112: { text: 'DL', class: 'dl' }, 118: { text: 'DL', class: 'dl

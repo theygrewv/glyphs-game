@@ -25,7 +25,7 @@
             width: 88vw; max-width: 420px; aspect-ratio: 1/1; 
             background: var(--grid-line); gap: 1px; border: 1px solid var(--grid-line);
         }
-        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 900; position: relative; }
+        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 7px; font-weight: 900; position: relative; overflow: hidden;}
         
         /* Board Glows */
         .s { background: #fff; color: #000; box-shadow: 0 0 15px #fff; border-radius: 2px; font-size: 12px; z-index: 1; }
@@ -42,7 +42,6 @@
 
         .tile {
             width: 42px; height: 42px;
-            /* LOWER OPACITY (0.7) for shine-through effect */
             background: linear-gradient(135deg, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0.4) 100%);
             backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
             border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.3);
@@ -52,8 +51,18 @@
             cursor: grab; z-index: 10; user-select: none; pointer-events: auto;
         }
         
-        /* Snap-to-board style adjustment */
-        .tile.on-board { position: relative; width: 95%; height: 95%; border-radius: 6px; font-size: 16px; box-shadow: none; }
+        /* FULL TILE FILL: Removes margins and fits board perfectly */
+        .tile.on-board { 
+            position: absolute; 
+            width: 100%; 
+            height: 100%; 
+            border-radius: 0; /* Squared edges to fill the grid cell perfectly */
+            font-size: 18px; 
+            box-shadow: none;
+            border: none;
+            left: 0 !important;
+            top: 0 !important;
+        }
         
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; color: rgba(0,0,0,0.7); }
         .dragging { opacity: 0.9; transform: scale(1.1); z-index: 100; pointer-events: none; }
@@ -102,6 +111,7 @@
 
         function initRack() {
             const screenW = window.innerWidth;
+            const rackStart = screenW / 2 - 175;
             for(let i=0; i<7; i++) {
                 const data = bag.pop();
                 const t = document.createElement('div');
@@ -109,8 +119,9 @@
                 t.innerHTML = `<span>${data.l==='?'?'':data.l}</span><span class="val">${data.v}</span>`;
                 t.dataset.letter = data.l;
                 t.dataset.value = data.v;
+                t.dataset.origLeft = `${rackStart + (i * 50)}px`;
                 
-                t.style.left = `${(screenW / 2 - 175) + (i * 50)}px`;
+                t.style.left = t.dataset.origLeft;
                 t.style.bottom = `40px`;
                 
                 addDragListeners(t);
@@ -159,7 +170,8 @@
                 const cell = target?.closest('.cell');
                 if (cell && !cell.querySelector('.tile')) {
                     el.classList.add('on-board');
-                    el.style.left = '0'; el.style.top = '0'; el.style.position = 'relative';
+                    // Reset inline styles to let the .on-board CSS class take over sizing
+                    el.style.left = ''; el.style.top = ''; el.style.bottom = '';
                     cell.appendChild(el);
                     cell.classList.add('occupied');
                     
@@ -167,10 +179,12 @@
                         status.innerText = "CENTER COVERED - PLAY ON";
                     }
                 } else {
-                    // Reset if not on cell
+                    // Reset to original rack position
                     el.classList.remove('on-board');
                     el.style.position = 'absolute';
-                    el.style.top = 'auto'; el.style.bottom = '40px';
+                    el.style.left = el.dataset.origLeft;
+                    el.style.top = 'auto'; 
+                    el.style.bottom = '40px';
                 }
             };
 

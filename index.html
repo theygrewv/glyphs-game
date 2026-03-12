@@ -3,70 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Blitz Cross</title>
+    <title>Blitz Cross: Noir</title>
     <style>
-        :root { --gold: #FFD700; --pink: #E0115F; --purple: #7851A9; --bg: #000; }
-        body { background: var(--bg); color: #fff; margin: 0; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow: hidden; touch-action: none; }
-        header { width: 100%; padding: 15px; display: flex; justify-content: space-between; border-bottom: 1px solid #1a1a1a; letter-spacing: 2px; font-weight: 900; }
-        .score-panel { width: 100%; padding: 10px 20px; display: flex; justify-content: space-around; background: #0a0a0a; font-size: 12px; color: #666; }
-        .grid { display: grid; grid-template-columns: repeat(11, 1fr); gap: 1px; width: 95vw; max-width: 450px; aspect-ratio: 1; background: #1a1a1a; margin-top: 10px; }
-        .cell { background: #000; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; transition: all 0.3s; }
-        /* Glowing Nodes */
-        .dd { box-shadow: inset 0 0 15px var(--gold); color: var(--gold); }
-        .tw { box-shadow: inset 0 0 15px var(--pink); color: var(--pink); }
-        .tl { box-shadow: inset 0 0 15px var(--purple); color: var(--purple); }
-        .center { box-shadow: inset 0 0 20px var(--gold); color: var(--gold); font-size: 18px; }
-        /* The Rack & Tiles */
-        .rack { margin-top: auto; margin-bottom: 30px; display: flex; gap: 8px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 15px; }
-        .tile { width: 45px; height: 45px; background: linear-gradient(145deg, #222, #000); border-radius: 8px; border: 1px solid #333; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; box-shadow: 0 5px 15px rgba(0,0,0,0.7); cursor: grab; position: relative; }
-        .tile:active { cursor: grabbing; transform: scale(1.1); }
-        .val { position: absolute; bottom: 3px; right: 5px; font-size: 8px; color: #888; }
-        .placed-tile { width: 100%; height: 100%; background: #222; color: #fff; font-size: 18px; display: flex; align-items: center; justify-content: center; border-radius: 2px; border: 1px solid var(--gold); }
+        :root {
+            --bg: #000000;
+            --grid-line: #ffffff22;
+            --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F; --dd: #FFD700;
+        }
+        body { background: var(--bg); color: #fff; margin: 0; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow: hidden; }
+        
+        /* Perfect Square Grid */
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(11, 1fr); 
+            width: 95vw; 
+            max-width: 480px; 
+            aspect-ratio: 1 / 1; /* Forces perfect squares */
+            background: var(--grid-line);
+            gap: 1px; /* The white grid lines */
+            border: 1px solid var(--grid-line);
+            margin-top: 20px;
+        }
+
+        .cell { 
+            background: var(--bg); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 10px; 
+            font-weight: 900;
+            position: relative;
+        }
+
+        /* Neon Glow Logic */
+        .dl { color: var(--dl); box-shadow: inset 0 0 15px var(--dl); }
+        .tl { color: var(--tl); box-shadow: inset 0 0 15px var(--tl); }
+        .dw { color: var(--dw); box-shadow: inset 0 0 15px var(--dw); }
+        .tw { color: var(--tw); box-shadow: inset 0 0 15px var(--tw); }
+        .dd { color: var(--dd); box-shadow: inset 0 0 15px var(--dd); border: 1px solid var(--dd); }
+        .start { background: #fff; color: #000; box-shadow: 0 0 20px #fff; }
+
+        /* Onyx Squircle Tiles */
+        .rack { margin-top: auto; margin-bottom: 40px; display: flex; gap: 10px; }
+        .tile {
+            width: 48px; height: 48px;
+            background: linear-gradient(145deg, #222, #000);
+            border-radius: 12px; /* The Squircle */
+            border: 1px solid #333;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: 900;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
-    <header><span>BLITZ CROSS</span><span style="color:var(--gold)">$0,000</span></header>
-    <div class="score-panel"><span>MULTIPLIER: <b id="mult">1x</b></span><span>TILES LEFT: 83</span></div>
-    
     <div class="grid" id="grid"></div>
-
-    <div class="rack" id="rack">
-        <div class="tile" draggable="true" data-letter="B" data-val="4">B<span class="val">4</span></div>
-        <div class="tile" draggable="true" data-letter="L" data-val="1">L<span class="val">1</span></div>
-        <div class="tile" draggable="true" data-letter="I" data-val="1">I<span class="val">1</span></div>
-        <div class="tile" draggable="true" data-letter="T" data-val="1">T<span class="val">1</span></div>
-        <div class="tile" draggable="true" data-letter="Z" data-val="10">Z<span class="val">10</span></div>
-    </div>
+    <div class="rack" id="rack"></div>
 
     <script>
         const grid = document.getElementById('grid');
-        const bonuses = { 0:'DD', 10:'DD', 110:'DD', 120:'DD', 60:'✦', 5:'TW', 55:'TW', 65:'TW', 115:'TW', 12:'TL', 20:'TL', 100:'TL', 108:'TL' };
-        
+        // Specific coordinate-based mapping for your 11x11 layout
+        const layout = {
+            60: { text: 'S', class: 'start' },
+            0: { text: 'DD', class: 'dd' }, 10: { text: 'DD', class: 'dd' },
+            110: { text: 'DD', class: 'dd' }, 120: { text: 'DD', class: 'dd' },
+            5: { text: 'TW', class: 'tw' }, 55: { text: 'TW', class: 'tw' },
+            65: { text: 'TW', class: 'tw' }, 115: { text: 'TW', class: 'tw' },
+            12: { text: 'DL', class: 'dl' }, 20: { text: 'DL', class: 'dl' },
+            100: { text: 'DL', class: 'dl' }, 108: { text: 'DL', class: 'dl' }
+        };
+
         for (let i = 0; i < 121; i++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
-            cell.dataset.index = i;
-            if (bonuses[i]) {
-                cell.className += ' ' + bonuses[i].toLowerCase().replace('✦', 'center');
-                cell.innerText = bonuses[i];
+            if (layout[i]) {
+                cell.innerText = layout[i].text;
+                cell.classList.add(layout[i].class);
             }
-            
-            // Drag & Drop Listeners
-            cell.ondragover = e => e.preventDefault();
-            cell.ondrop = e => {
-                const letter = e.dataTransfer.getData("letter");
-                const val = e.dataTransfer.getData("val");
-                cell.innerHTML = `<div class="placed-tile">${letter}</div>`;
-                cell.style.boxShadow = "none";
-            };
             grid.appendChild(cell);
         }
 
-        document.querySelectorAll('.tile').forEach(tile => {
-            tile.ondragstart = e => {
-                e.dataTransfer.setData("letter", tile.dataset.letter);
-                e.dataTransfer.setData("val", tile.dataset.val);
-            };
+        // Generate Sample Rack
+        ['B','L','I','T','Z'].forEach(l => {
+            const t = document.createElement('div');
+            t.className = 'tile'; t.innerText = l;
+            document.getElementById('rack').appendChild(t);
         });
     </script>
 </body>

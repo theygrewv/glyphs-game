@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blitz Cross</title>
+    <style>
+        body { background: #000; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; }
+        .grid { display: grid; grid-template-columns: repeat(11, 1fr); gap: 2px; width: 90vw; max-width: 500px; aspect-ratio: 1; }
+        .cell { background: #111; border: 1px solid #222; position: relative; }
+        .center { background: #FFD700; opacity: 0.8; box-shadow: 0 0 15px #FFD700; }
+    </style>
+</head>
+<body>
+    <div class="grid" id="grid"></div>
+    <script>
+        const grid = document.getElementById('grid');
+        for (let i = 0; i < 121; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            if (i === 60) cell.className += ' center';
+            grid.appendChild(cell);
+        }
+    </script>
+</body>
+</html>

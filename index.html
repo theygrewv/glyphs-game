@@ -1,4 +1,4 @@
-l<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -17,12 +17,30 @@ l<!DOCTYPE html>
         }
         header { width: 100%; padding: 15px; text-align: center; letter-spacing: 5px; font-weight: 900; border-bottom: 1px solid #111; }
         
+        /* Forces perfect squares via aspect-ratio and explicit row definitions */
         .grid { 
-            display: grid; grid-template-columns: repeat(11, 1fr); 
-            width: 94vw; max-width: 480px; aspect-ratio: 1/1; 
-            background: var(--grid-line); gap: 1px; border: 1px solid var(--grid-line); margin-top: 15px;
+            display: grid; 
+            grid-template-columns: repeat(11, 1fr); 
+            grid-template-rows: repeat(11, 1fr); 
+            width: 94vw; 
+            max-width: 480px; 
+            aspect-ratio: 1/1; 
+            background: var(--grid-line); 
+            gap: 1px; 
+            border: 1px solid var(--grid-line); 
+            margin-top: 15px;
         }
-        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 900; text-align: center; }
+        
+        .cell { 
+            background: var(--bg); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 8px; 
+            font-weight: 900; 
+            text-align: center;
+            overflow: hidden;
+        }
         
         /* Specialized Glows */
         .s { background: #fff; color: #000; box-shadow: 0 0 20px #fff; border-radius: 2px; font-size: 14px; z-index: 2; }
@@ -50,27 +68,17 @@ l<!DOCTYPE html>
     <script>
         const grid = document.getElementById('grid');
         
-        // Mapped from your (x,y) coordinates to 0-120 index
+        // Locked Coordinate Map (No changes made to placement)
         const layout = {
-            60: { t: '✦', c: 's' }, // Center Start
-            
-            // TL (Triple Letter) - 8 Total
+            60: { t: '✦', c: 's' }, 
             0: { t: 'TL', c: 'tl' }, 10: { t: 'TL', c: 'tl' }, 24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' },
             90: { t: 'TL', c: 'tl' }, 96: { t: 'TL', c: 'tl' }, 110: { t: 'TL', c: 'tl' }, 120: { t: 'TL', c: 'tl' },
-
-            // TW (Triple Word) - 8 Total
             3: { t: 'TW', c: 'tw' }, 7: { t: 'TW', c: 'tw' }, 33: { t: 'TW', c: 'tw' }, 43: { t: 'TW', c: 'tw' },
             77: { t: 'TW', c: 'tw' }, 87: { t: 'TW', c: 'tw' }, 113: { t: 'TW', c: 'tw' }, 117: { t: 'TW', c: 'tw' },
-
-            // DL (Double Letter) - 8 Total
             12: { t: 'DL', c: 'dl' }, 20: { t: 'DL', c: 'dl' }, 36: { t: 'DL', c: 'dl' }, 40: { t: 'DL', c: 'dl' },
             80: { t: 'DL', c: 'dl' }, 84: { t: 'DL', c: 'dl' }, 100: { t: 'DL', c: 'dl' }, 108: { t: 'DL', c: 'dl' },
-
-            // DW (Double Word) - 6 Total
             16: { t: 'DW', c: 'dw' }, 48: { t: 'DW', c: 'dw' }, 50: { t: 'DW', c: 'dw' }, 56: { t: 'DW', c: 'dw' },
             104: { t: 'DW', c: 'dw' }, 64: { t: 'DW', c: 'dw' }, 70: { t: 'DW', c: 'dw' }, 72: { t: 'DW', c: 'dw' },
-
-            // DD (Double-Double) - 8 Total
             26: { t: 'DD', c: 'dd' }, 28: { t: 'DD', c: 'dd' }, 46: { t: 'DD', c: 'dd' }, 52: { t: 'DD', c: 'dd' },
             68: { t: 'DD', c: 'dd' }, 74: { t: 'DD', c: 'dd' }, 92: { t: 'DD', c: 'dd' }, 94: { t: 'DD', c: 'dd' }
         };

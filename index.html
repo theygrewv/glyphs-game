@@ -36,7 +36,25 @@
 
         .cell.occupied.s { color: transparent; box-shadow: none; background: var(--bg); }
 
-        .rack { display: flex; gap: 8px; padding: 20px 10px; width: 100%; justify-content: center; min-height: 80px; pointer-events: none;}
+        .controls { width: 100%; display: flex; justify-content: center; padding-bottom: 20px; }
+        
+        #recall-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+        }
+        #recall-btn:active { transform: scale(0.95); background: rgba(255, 255, 255, 0.2); }
+
+        .rack { display: flex; gap: 8px; width: 100%; justify-content: center; min-height: 60px; pointer-events: none;}
 
         .tile {
             width: 42px; height: 42px;
@@ -55,12 +73,10 @@
             left: 0 !important; top: 0 !important;
         }
 
-        /* DYNAMIC INVALID OUTLINE: Unified Word Glow */
         .tile.invalid {
             box-shadow: 0 0 15px #ff0000 !important;
             z-index: 50;
         }
-        /* Remove internal borders for touching invalid tiles to make it look like one shape */
         .tile.invalid.edge-top { border-top: 3px solid #ff0000 !important; }
         .tile.invalid.edge-bottom { border-bottom: 3px solid #ff0000 !important; }
         .tile.invalid.edge-left { border-left: 3px solid #ff0000 !important; }
@@ -73,11 +89,17 @@
 <body>
     <header id="status">BLITZ CROSS</header>
     <div class="grid" id="grid"></div>
+    
+    <div class="controls">
+        <button id="recall-btn">Recall Tiles</button>
+    </div>
+    
     <div class="rack" id="rack"></div>
 
     <script>
         const grid = document.getElementById('grid');
         const status = document.getElementById('status');
+        const recallBtn = document.getElementById('recall-btn');
         let placedTiles = [];
 
         const layout = {
@@ -125,13 +147,10 @@
         }
 
         function validatePlacement() {
-            // Clear old states
             placedTiles.forEach(t => {
                 t.el.classList.remove('invalid', 'edge-top', 'edge-bottom', 'edge-left', 'edge-right');
             });
-
             if (placedTiles.length < 2) return true;
-
             const rows = placedTiles.map(t => Math.floor(t.index / 11));
             const cols = placedTiles.map(t => t.index % 11);
             const isHorizontal = rows.every(r => r === rows[0]);
@@ -140,10 +159,6 @@
             if (!isHorizontal && !isVertical) {
                 placedTiles.forEach(t => {
                     t.el.classList.add('invalid');
-                    const r = Math.floor(t.index / 11);
-                    const c = t.index % 11;
-                    
-                    // Check if neighbors exist in the placedTiles array to determine edges
                     if (!placedTiles.find(p => p.index === t.index - 11)) t.el.classList.add('edge-top');
                     if (!placedTiles.find(p => p.index === t.index + 11)) t.el.classList.add('edge-bottom');
                     if (!placedTiles.find(p => p.index === t.index - 1)) t.el.classList.add('edge-left');
@@ -220,12 +235,7 @@
                     placedTiles.push({ el: el, index: parseInt(cell.dataset.index) });
                     validatePlacement();
                 } else {
-                    el.classList.remove('on-board');
-                    el.style.position = 'absolute';
-                    el.style.transition = 'all 0.3s ease';
-                    el.style.left = el.dataset.origLeft;
-                    el.style.bottom = '40px'; el.style.top = 'auto';
-                    setTimeout(() => { el.style.transition = ''; validatePlacement(); }, 300);
+                    returnToHand(el);
                 }
             };
 
@@ -236,6 +246,31 @@
             window.addEventListener('mouseup', onEnd);
             window.addEventListener('touchend', onEnd);
         }
+
+        function returnToHand(el) {
+            el.classList.remove('on-board');
+            el.style.position = 'absolute';
+            el.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            el.style.left = el.dataset.origLeft;
+            el.style.bottom = '40px'; 
+            el.style.top = 'auto';
+            setTimeout(() => { 
+                el.style.transition = ''; 
+                validatePlacement(); 
+            }, 400);
+        }
+
+        recallBtn.addEventListener('click', () => {
+            const boardTiles = document.querySelectorAll('.tile.on-board');
+            boardTiles.forEach(tile => {
+                const cell = tile.parentElement;
+                cell.classList.remove('occupied');
+                document.body.appendChild(tile);
+                placedTiles = placedTiles.filter(p => p.el !== tile);
+                returnToHand(tile);
+            });
+            status.innerText = "TILES RECALLED";
+        });
 
         initRack();
     </script>

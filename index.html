@@ -147,10 +147,13 @@
             return hand;
         }
 
+        function clearInvalidStyles(el) {
+            el.classList.remove('invalid', 'edge-top', 'edge-bottom', 'edge-left', 'edge-right');
+        }
+
         function validatePlacement() {
-            placedTiles.forEach(t => {
-                t.el.classList.remove('invalid', 'edge-top', 'edge-bottom', 'edge-left', 'edge-right');
-            });
+            placedTiles.forEach(t => clearInvalidStyles(t.el));
+            
             if (placedTiles.length < 2) return true;
             const rows = placedTiles.map(t => Math.floor(t.index / 11));
             const cols = placedTiles.map(t => t.index % 11);
@@ -206,7 +209,6 @@
                     document.body.appendChild(el);
                     el.classList.remove('on-board');
                     el.style.position = 'absolute';
-                    // Re-position at the spot it was on the board before dragging
                     el.style.left = `${rect.left}px`;
                     el.style.top = `${rect.top}px`;
                     validatePlacement();
@@ -254,7 +256,9 @@
         }
 
         function returnToHand(el, delay = 0) {
-            // High-fidelity animation logic
+            // Instant visual cleanup before flight
+            clearInvalidStyles(el);
+            
             const rect = el.getBoundingClientRect();
             if (el.parentElement.classList.contains('cell')) {
                 document.body.appendChild(el);
@@ -266,7 +270,6 @@
             el.style.position = 'absolute';
             el.style.zIndex = '200';
             
-            // Random wobble for character
             const wobble = (Math.random() * 20) - 10;
             
             setTimeout(() => {
@@ -280,22 +283,27 @@
                     el.style.transition = 'all 0.2s ease';
                     el.style.transform = 'rotate(0deg) scale(1)';
                     el.style.zIndex = '10';
-                    setTimeout(() => { el.style.transition = ''; validatePlacement(); }, 200);
+                    setTimeout(() => { 
+                        el.style.transition = ''; 
+                        // Final validation check once tile is "home"
+                        validatePlacement(); 
+                    }, 200);
                 }, 500);
             }, delay);
         }
 
         recallBtn.addEventListener('click', () => {
             const boardTiles = [...document.querySelectorAll('.tile.on-board')];
-            // Staggered release: tiles fly back one by one quickly
+            // Clear the tracking array first so remaining tiles don't think they are still part of an invalid set
+            placedTiles = []; 
+            
             boardTiles.forEach((tile, index) => {
                 const cell = tile.parentElement;
                 cell.classList.remove('occupied');
-                placedTiles = placedTiles.filter(p => p.el !== tile);
-                returnToHand(tile, index * 50); // 50ms stagger
+                returnToHand(tile, index * 50);
             });
-            status.innerText = "RECALLING...";
-            setTimeout(() => { status.innerText = "BLITZ CROSS"; }, 1000);
+            
+            status.innerText = "BLITZ CROSS";
         });
 
         initRack();

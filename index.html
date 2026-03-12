@@ -35,7 +35,6 @@
         .tw { color: var(--tw); box-shadow: inset 0 0 8px var(--tw); }
         .dd { color: var(--dd); box-shadow: inset 0 0 12px var(--dd); border: 1px solid var(--dd); font-size: 9px; }
 
-        /* Hide the star symbol when a tile is inside */
         .cell.occupied.s { color: transparent; box-shadow: none; background: var(--bg); }
 
         .rack { display: flex; gap: 8px; padding: 20px 10px; width: 100%; justify-content: center; min-height: 80px; pointer-events: none;}
@@ -49,23 +48,18 @@
             display: flex; align-items: center; justify-content: center;
             color: #000; font-size: 20px; font-weight: 900; position: absolute;
             cursor: grab; z-index: 10; user-select: none; pointer-events: auto;
+            transition: transform 0.1s, opacity 0.1s;
         }
         
-        /* FULL TILE FILL: Removes margins and fits board perfectly */
+        /* Tile on board state */
         .tile.on-board { 
-            position: absolute; 
-            width: 100%; 
-            height: 100%; 
-            border-radius: 0; /* Squared edges to fill the grid cell perfectly */
-            font-size: 18px; 
-            box-shadow: none;
-            border: none;
-            left: 0 !important;
-            top: 0 !important;
+            position: absolute; width: 100%; height: 100%; 
+            border-radius: 0; font-size: 18px; box-shadow: none; border: none;
+            left: 0 !important; top: 0 !important; transform: none !important;
         }
         
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; color: rgba(0,0,0,0.7); }
-        .dragging { opacity: 0.9; transform: scale(1.1); z-index: 100; pointer-events: none; }
+        .dragging { opacity: 0.9; transform: scale(1.15); z-index: 100; pointer-events: none; transition: none; }
     </style>
 </head>
 <body>
@@ -119,10 +113,15 @@
                 t.innerHTML = `<span>${data.l==='?'?'':data.l}</span><span class="val">${data.v}</span>`;
                 t.dataset.letter = data.l;
                 t.dataset.value = data.v;
-                t.dataset.origLeft = `${rackStart + (i * 50)}px`;
+                
+                // Set and store the 'Hand' position
+                const startLeft = rackStart + (i * 50);
+                const startBottom = 40;
+                t.dataset.origLeft = `${startLeft}px`;
+                t.dataset.origBottom = `${startBottom}px`;
                 
                 t.style.left = t.dataset.origLeft;
-                t.style.bottom = `40px`;
+                t.style.bottom = t.dataset.origBottom;
                 
                 addDragListeners(t);
                 document.body.appendChild(t);
@@ -136,6 +135,15 @@
                 const touch = e.type === 'touchstart' ? e.touches[0] : e;
                 offsetX = touch.clientX - el.getBoundingClientRect().left;
                 offsetY = touch.clientY - el.getBoundingClientRect().top;
+                
+                // If it was on board, remove the occupied status from old cell
+                if(el.parentElement.classList.contains('cell')) {
+                    el.parentElement.classList.remove('occupied');
+                    document.body.appendChild(el); // Move back to body for dragging
+                    el.classList.remove('on-board');
+                    el.style.position = 'absolute';
+                }
+
                 el.classList.add('dragging');
                 
                 if(el.dataset.letter === '?' && el.querySelector('span').innerText === '') {
@@ -158,7 +166,9 @@
             };
 
             const onEnd = (e) => {
+                if (!el.classList.contains('dragging')) return;
                 el.classList.remove('dragging');
+                
                 const rect = el.getBoundingClientRect();
                 const centerX = rect.left + rect.width/2;
                 const centerY = rect.top + rect.height/2;
@@ -168,9 +178,10 @@
                 el.style.display = 'flex';
 
                 const cell = target?.closest('.cell');
-                if (cell && !cell.querySelector('.tile')) {
+                
+                if (cell && !cell.classList.contains('occupied')) {
+                    // Success: Snap to board
                     el.classList.add('on-board');
-                    // Reset inline styles to let the .on-board CSS class take over sizing
                     el.style.left = ''; el.style.top = ''; el.style.bottom = '';
                     cell.appendChild(el);
                     cell.classList.add('occupied');
@@ -179,21 +190,25 @@
                         status.innerText = "CENTER COVERED - PLAY ON";
                     }
                 } else {
-                    // Reset to original rack position
+                    // Failure: Drop back into hand
                     el.classList.remove('on-board');
                     el.style.position = 'absolute';
+                    el.style.transition = 'all 0.3s ease'; // Smooth glide back
                     el.style.left = el.dataset.origLeft;
-                    el.style.top = 'auto'; 
-                    el.style.bottom = '40px';
+                    el.style.bottom = el.dataset.origBottom;
+                    el.style.top = 'auto';
+                    
+                    // Remove transition after glide finished to keep dragging snappy
+                    setTimeout(() => { el.style.transition = ''; }, 300);
                 }
             };
 
             el.addEventListener('mousedown', onStart);
-            el.addEventListener('touchstart', onStart);
+            el.addEventListener('touchstart', onStart, {passive: false});
             window.addEventListener('mousemove', onMove);
-            window.addEventListener('touchmove', onMove);
-            el.addEventListener('mouseup', onEnd);
-            el.addEventListener('touchend', onEnd);
+            window.addEventListener('touchmove', onMove, {passive: false});
+            window.addEventListener('mouseup', onEnd);
+            window.addEventListener('touchend', onEnd);
         }
 
         initRack();

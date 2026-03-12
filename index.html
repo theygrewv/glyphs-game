@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Blitz Cross: Precision Edition</title>
+    <title>Blitz Cross: Frosted Glass Edition</title>
     <style>
         :root {
             --bg: #000000;
-            --grid-line: rgba(255, 255, 255, 0.15);
+            --grid-line: rgba(255, 255, 255, 0.1);
             --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F; --dd: #FFD700;
+            --glass: rgba(255, 255, 255, 0.85);
         }
         body { 
             background: var(--bg); color: #fff; margin: 0; font-family: 'Inter', sans-serif; 
@@ -17,32 +18,16 @@
         }
         header { width: 100%; padding: 15px; text-align: center; letter-spacing: 5px; font-weight: 900; border-bottom: 1px solid #111; }
         
-        /* Forces perfect squares via aspect-ratio and explicit row definitions */
         .grid { 
             display: grid; 
             grid-template-columns: repeat(11, 1fr); 
             grid-template-rows: repeat(11, 1fr); 
-            width: 94vw; 
-            max-width: 480px; 
-            aspect-ratio: 1/1; 
-            background: var(--grid-line); 
-            gap: 1px; 
-            border: 1px solid var(--grid-line); 
-            margin-top: 15px;
+            width: 94vw; max-width: 480px; aspect-ratio: 1/1; 
+            background: var(--grid-line); gap: 1px; border: 1px solid var(--grid-line); margin-top: 15px;
         }
+        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 900; }
         
-        .cell { 
-            background: var(--bg); 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-size: 8px; 
-            font-weight: 900; 
-            text-align: center;
-            overflow: hidden;
-        }
-        
-        /* Specialized Glows */
+        /* Glows */
         .s { background: #fff; color: #000; box-shadow: 0 0 20px #fff; border-radius: 2px; font-size: 14px; z-index: 2; }
         .dl { color: var(--dl); box-shadow: inset 0 0 10px var(--dl); }
         .tl { color: var(--tl); box-shadow: inset 0 0 10px var(--tl); }
@@ -50,14 +35,42 @@
         .tw { color: var(--tw); box-shadow: inset 0 0 10px var(--tw); }
         .dd { color: var(--dd); box-shadow: inset 0 0 15px var(--dd), 0 0 8px rgba(255,215,0,0.3); border: 1px solid var(--dd); font-size: 10px; z-index: 1; }
 
-        .rack { margin-top: auto; margin-bottom: 30px; display: flex; gap: 6px; padding: 10px; }
+        /* THE FROSTED GLASS SQUIRKLE TILES */
+        .rack { margin-top: auto; margin-bottom: 40px; display: flex; gap: 8px; padding: 10px; }
         .tile {
-            width: 42px; height: 42px; background: linear-gradient(145deg, #222, #000);
-            border-radius: 10px; border: 1px solid #333; display: flex; align-items: center; 
-            justify-content: center; font-size: 18px; font-weight: 900; box-shadow: 0 5px 10px #000;
+            width: 46px; 
+            height: 46px; 
+            background: var(--glass);
+            backdrop-filter: blur(8px); /* The Frosted Effect */
+            -webkit-backdrop-filter: blur(8px);
+            
+            /* Perfect Squircle Shape */
+            border-radius: 14px; 
+            
+            /* Glass Depth & Lighting */
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 
+                0 4px 10px rgba(0,0,0,0.5), 
+                inset 0 2px 2px rgba(255,255,255,1);
+            
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            
+            /* Typography: Deep Etched Look */
+            color: #000;
+            font-size: 24px; 
+            font-weight: 900; 
             position: relative;
         }
-        .val { position: absolute; bottom: 3px; right: 5px; font-size: 7px; color: #666; }
+        .val { 
+            position: absolute; 
+            bottom: 4px; 
+            right: 6px; 
+            font-size: 9px; 
+            font-weight: 700;
+            color: rgba(0,0,0,0.6); 
+        }
     </style>
 </head>
 <body>
@@ -67,8 +80,6 @@
 
     <script>
         const grid = document.getElementById('grid');
-        
-        // Locked Coordinate Map (No changes made to placement)
         const layout = {
             60: { t: '✦', c: 's' }, 
             0: { t: 'TL', c: 'tl' }, 10: { t: 'TL', c: 'tl' }, 24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' },

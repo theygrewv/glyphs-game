@@ -12,7 +12,6 @@
         }
         body { background: var(--bg); color: #fff; margin: 0; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 20px 0; }
         
-        /* Obsidian Frosted Grid */
         .grid { 
             display: grid; grid-template-columns: repeat(var(--cols, 11), 1fr); 
             width: 92vw; max-width: 400px; aspect-ratio: 1/1; 
@@ -24,7 +23,7 @@
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
         }
 
-        /* Neon Glows - Pulsing from Lexicon */
+        /* Neon Glows */
         .dl { color: var(--dl); text-shadow: 0 0 10px var(--dl); }
         .tl { color: var(--tl); text-shadow: 0 0 10px var(--tl); }
         .dw { color: var(--dw); text-shadow: 0 0 10px var(--dw); }
@@ -32,9 +31,6 @@
         .dd { color: var(--dd); box-shadow: inset 0 0 15px var(--dd); text-shadow: 0 0 10px var(--dd); }
         .s { background: #fff; color: #000; font-size: 22px; width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; border-radius: 2px; }
 
-        .tile { width: 46px; height: 46px; background: #fff; color: #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; position: absolute; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .tile.on-board { width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; }
-        
         .btn { background: #222; color: #fff; border: none; padding: 14px 24px; border-radius: 30px; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; }
         .primary { background: #fff; color: #000; padding: 14px 32px; }
     </style>
@@ -49,11 +45,11 @@
     <div id="rack" style="height: 100px; width: 100%; position: relative;"></div>
 
     <script>
-        let layout, board, tiles, theme, bag = [];
+        let layout, board, tiles, theme;
 
         async function init() {
             try {
-                // FETCH ALL FOLDERS
+                // Fetch using relative paths
                 const [l, b, t, th] = await Promise.all([
                     fetch('./lexicon/layout.json').then(r => r.json()),
                     fetch('./lexicon/board.json').then(r => r.json()),
@@ -65,9 +61,9 @@
 
                 applyTheme();
                 renderBoard();
-                console.log("Lexicon Engine Loaded 🤙🏽");
+                console.log("Lexicon Engine Online 🤙🏽");
             } catch (e) {
-                console.error("Lexicon Load Failed:", e);
+                console.error("Initialization failed:", e);
             }
         }
 
@@ -93,6 +89,7 @@
             }
         }
 
+        // Start the engine
         init();
     </script>
 </body>

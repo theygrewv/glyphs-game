@@ -1,20 +1,18 @@
 {
-  "name": "Obsidian Neon",
   "colors": {
     "bg": "#050505",
-    "gridLine": "rgba(255, 255, 255, 0.1)",
+    "gridLine": "rgba(255, 255, 255, 0.15)",
     "gold": "#FFFF00",
     "obsidian": "rgba(20, 20, 20, 0.85)",
     "dl": "#00FFFF",
     "tl": "#7851A9",
     "dw": "#FF8C00",
     "tw": "#E0115F",
-    "dd": "#FFFF00",
-    "star": "#FFFFFF"
+    "dd": "#FFFF00"
   },
   "effects": {
-    "glowIntensity": "10px",
     "blurStrength": "12px",
-    "tileRadius": "6px"
+    "glowSize": "12px",
+    "ddGlowSize": "16px"
   }
 }

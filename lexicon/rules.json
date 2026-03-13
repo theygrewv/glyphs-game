@@ -1,0 +1,13 @@
+{
+  "placement": {
+    "requireEmpty": true,
+    "allowOverwrites": false,
+    "snapTolerance": 25,
+    "validation": "ortho-only"
+  },
+  "dragging": {
+    "activeScale": 1.2,
+    "activeOpacity": 0.9,
+    "ghostScoreOnDrag": true
+  }
+}

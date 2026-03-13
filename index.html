@@ -9,12 +9,12 @@
         body { background: var(--bg); color: #fff; margin: 0; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; }
         header { text-align: center; padding: 10px; }
         .score-box { font-size: 1.8rem; font-weight: 900; color: var(--gold); }
-        .grid { display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); width: 95vw; max-width: 420px; aspect-ratio: 1/1; background: var(--grid-line); gap: 1px; border: 1px solid var(--grid-line); }
-        .cell { background: #000; display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; font-size: 8px; font-weight: 900; }
+        .grid { display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); width: 95vw; max-width: 420px; aspect-ratio: 1/1; background: var(--grid-line); gap: 0.5px; border: 1px solid var(--grid-line); }
+        .cell { background: #000; display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; font-size: 7px; font-weight: 900; overflow: hidden; color: rgba(255,255,255,0.4); border: 0.1px solid rgba(255,255,255,0.1); }
         .tile { width: 44px; height: 44px; background: #fff; color: #000; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; position: absolute; z-index: 10; }
         .tile.on-board { width: 100%; height: 100%; border-radius: 0; border: 0.5px solid #000; left: 0 !important; top: 0 !important; }
         .tile.locked { background: #ddd; pointer-events: none; }
-        .s { background: #fff; color: #000; border-radius: 2px; font-size: 14px; }
+        .s { background: #fff; color: #000; border-radius: 2px; font-size: 18px; width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; z-index: 1; }
         .dd { color: var(--dd); box-shadow: inset 0 0 8px var(--dd); }
         #ghost-score { position: fixed; padding: 2px 8px; border-radius: 4px; font-weight: 900; font-size: 12px; display: none; z-index: 2000; transform: translate(-100%, -100%); }
         #ghost-score.valid { background: var(--gold); color: #000; box-shadow: 0 0 10px var(--gold); }

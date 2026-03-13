@@ -5,32 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Glyphs: Lexicon Engine</title>
     <style>
-        :root { 
-            --bg: #000; --grid-line: rgba(255, 255, 255, 0.1); --gold: #FFFF00;
-            --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F; --dd: #FFFF00;
-        }
-        body { background: var(--bg); color: #fff; margin: 0; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; }
-        header { text-align: center; padding: 10px; }
-        .score-box { font-size: 1.8rem; font-weight: 900; color: var(--gold); }
-        .grid { display: grid; grid-template-columns: repeat(11, 1fr); width: 95vw; max-width: 420px; aspect-ratio: 1/1; background: var(--grid-line); gap: 0.5px; border: 1px solid var(--grid-line); }
-        .cell { background: #000; display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; font-size: 7px; font-weight: 900; }
-        .tile { width: 42px; height: 42px; background: #fff; color: #000; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; position: absolute; z-index: 100; box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
-        .tile.on-board { width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; }
-        .tile.locked { background: #eee; pointer-events: none; }
-        /* Neon Bonus Styling */
-        .dl { color: var(--dl); text-shadow: 0 0 5px var(--dl); }
-        .tl { color: var(--tl); text-shadow: 0 0 5px var(--tl); }
-        .dw { color: var(--dw); text-shadow: 0 0 5px var(--dw); }
-        .tw { color: var(--tw); text-shadow: 0 0 5px var(--tw); }
-        .dd { color: var(--dd); box-shadow: inset 0 0 10px var(--dd); text-shadow: 0 0 5px var(--dd); }
-        .s { background: #fff; color: #000; font-size: 18px; width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; }
-        #ghost-score { position: fixed; padding: 4px 10px; border-radius: 4px; font-weight: 900; display: none; z-index: 2000; transform: translate(-100%, -100%); }
-        #ghost-score.valid { background: var(--gold); color: #000; }
-        #ghost-score.invalid { background: #fff; color: #000; }
-        .controls { padding: 15px; display: flex; gap: 10px; }
-        .btn { padding: 12px 20px; border-radius: 25px; border: none; font-weight: 900; text-transform: uppercase; font-size: 0.7rem; background: rgba(255,255,255,0.1); color: #fff; }
-        .primary { background: #fff; color: #000; }
-    </style>
+    :root { 
+        --bg: #000; --grid-line: rgba(255, 255, 255, 0.15); --gold: #FFFF00;
+        --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F; --dd: #FFFF00;
+    }
+    body { background: var(--bg); color: #fff; margin: 0; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; }
+    .grid { display: grid; grid-template-columns: repeat(11, 1fr); width: 95vw; max-width: 420px; aspect-ratio: 1/1; background: var(--grid-line); gap: 0.8px; border: 1px solid var(--grid-line); }
+    .cell { background: #000; display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; font-size: 8px; font-weight: 900; color: #fff; }
+    
+    .dl { color: var(--dl); text-shadow: 0 0 10px var(--dl); }
+    .tl { color: var(--tl); text-shadow: 0 0 10px var(--tl); }
+    .dw { color: var(--dw); text-shadow: 0 0 10px var(--dw); }
+    .tw { color: var(--tw); text-shadow: 0 0 10px var(--tw); }
+    .dd { color: var(--dd); box-shadow: inset 0 0 15px var(--dd); text-shadow: 0 0 10px var(--dd); }
+    .s { background: #fff; color: #000; font-size: 20px; width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; }
+</style>
 </head>
 <body>
     <header>

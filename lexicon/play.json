@@ -1,0 +1,17 @@
+{
+  "validation": {
+    "dictionaryUrl": "https://raw.githubusercontent.com/dolph/dictionary/master/enable1.txt",
+    "minWordLength": 2,
+    "requireCenterStart": true,
+    "mustConnect": true
+  },
+  "mechanics": {
+    "clearBoardOnPlay": false,
+    "refillRackOnPlay": true,
+    "scoringAnimation": "float-up"
+  },
+  "rewards": {
+    "bingoBonus": 50,
+    "bingoTileCount": 7
+  }
+}

@@ -23,11 +23,13 @@
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
         }
 
-        /* Neon Glows */
-        .dl { color: var(--dl); text-shadow: 0 0 10px var(--dl); }
-        .tl { color: var(--tl); text-shadow: 0 0 10px var(--tl); }
-        .dw { color: var(--dw); text-shadow: 0 0 10px var(--dw); }
-        .tw { color: var(--tw); text-shadow: 0 0 10px var(--tw); }
+        
+        /* Universal Neon Inset Glows */
+        .dl { color: var(--dl); text-shadow: 0 0 8px var(--dl); box-shadow: inset 0 0 var(--glow) var(--dl); }
+        .tl { color: var(--tl); text-shadow: 0 0 8px var(--tl); box-shadow: inset 0 0 var(--glow) var(--tl); }
+        .dw { color: var(--dw); text-shadow: 0 0 8px var(--dw); box-shadow: inset 0 0 var(--glow) var(--dw); }
+        .tw { color: var(--tw); text-shadow: 0 0 8px var(--tw); box-shadow: inset 0 0 var(--glow) var(--tw); }
+        .dd { color: var(--dd); text-shadow: 0 0 8px var(--dd); box-shadow: inset 0 0 var(--ddGlow) var(--dd); }
         .dd { color: var(--dd); box-shadow: inset 0 0 15px var(--dd); text-shadow: 0 0 10px var(--dd); }
         .s { background: #fff; color: #000; font-size: 22px; width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; border-radius: 2px; }
 
@@ -67,9 +69,17 @@
             }
         }
 
+        
         function applyTheme() {
             const root = document.documentElement.style;
             Object.keys(theme.colors).forEach(key => root.setProperty(`--${key}`, theme.colors[key]));
+            root.setProperty('--cols', board.cols);
+            root.setProperty('--gap', board.gap || '1px');
+            root.setProperty('--blur', theme.effects.blurStrength || '10px');
+            root.setProperty('--glow', theme.effects.glowSize || '12px');
+            root.setProperty('--ddGlow', theme.effects.ddGlowSize || '15px');
+        }
+`, theme.colors[key]));
             root.setProperty('--cols', board.cols);
             root.setProperty('--gap', board.gap || '1px');
             root.setProperty('--blur', theme.effects.blurStrength || '10px');

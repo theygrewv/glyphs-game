@@ -6,8 +6,12 @@
     "mustConnect": true,
     "allowCrossWords": true
   },
+  "vectors": {
+    "horizontal": {"step": 1, "check": "left-right"},
+    "vertical": {"step": 11, "check": "up-down"}
+  },
   "mechanics": {
-    "scanDirection": "auto",
-    "includeExistingTiles": true
+    "includeExistingTiles": true,
+    "lockOnPlay": true
   }
 }

@@ -3,11 +3,11 @@
     "maxHandSize": 7,
     "refillTrigger": "onPlaySuccess",
     "drawDelayMs": 200,
-    "spacing": "4px",
-    "animation": "slide-up"
+    "spacing": "8px"
   },
   "layout": {
     "autoCenter": true,
-    "preventStacking": true
+    "overflow": "contained",
+    "rackWidth": "90vw"
   }
 }

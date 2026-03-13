@@ -7,16 +7,31 @@
     <style id="dynamic-styles">
         :root { --bg: #000; }
         body { background: var(--bg); color: #fff; margin: 0; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 20px 0; -webkit-user-select: none; }
+        
         .grid { display: grid; width: 92vw; max-width: 400px; aspect-ratio: 1/1; pointer-events: none; z-index: 5; position: relative; }
-        .cell { display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; font-size: 8px; font-weight: 900; pointer-events: auto; }
-        .tile { width: 46px; height: 46px; background: #fff; color: #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; position: absolute; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.5); touch-action: none; pointer-events: auto; transition: transform 0.2s, opacity 0.2s; }
-        .tile.on-board { width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; }
+        .cell { display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; pointer-events: auto; }
+        
+        /* The Rack - The Centering Machine */
+        #rack { 
+            display: flex; justify-content: center; align-items: center; 
+            gap: 8px; width: 100%; height: 80px; padding-bottom: 20px;
+            z-index: 10;
+        }
+
+        .tile { 
+            width: 46px; height: 46px; background: #fff; color: #000; border-radius: 6px; 
+            display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); touch-action: none; position: relative;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        
+        /* Dragging State - Lifted out of Flex flow */
+        .tile.dragging { position: fixed; z-index: 2000; opacity: 0.9; transform: scale(1.2); pointer-events: none; }
+        .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; }
         .tile.fixed { filter: brightness(0.8); pointer-events: none; }
-        .tile.dragging { z-index: 2000; opacity: 0.95; pointer-events: none; transform: scale(1.1); }
+        
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 9px; opacity: 0.6; }
-        .feedback-node { position: absolute; z-index: 500; font-weight: 900; pointer-events: none; }
-        .valid-score { color: var(--gold); text-shadow: 0 0 10px var(--gold); font-size: 1.2rem; }
-        .invalid-x { color: #FF0000; font-size: 1.2rem; }
+        .feedback-node { position: absolute; z-index: 500; font-weight: 900; }
         .controls { display: flex; gap: 10px; z-index: 10; }
         .btn { background: #222; color: #fff; border: none; padding: 14px 24px; border-radius: 30px; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; }
         .primary { background: #fff; color: #000; }
@@ -26,7 +41,7 @@
     <header id="game-header"></header>
     <div class="grid" id="grid"></div>
     <div class="controls" id="ui-controls"></div>
-    <div id="rack" style="height: 100px; width: 100%; position: relative;"></div>
+    <div id="rack"></div>
 
     <script>
         let layout, board, tiles, theme, ui, rules, playRules, drawRules, dictionary = new Set(), bag = [], placedTiles = [], totalScore = 0;
@@ -43,21 +58,17 @@
                     fetch('./lexicon/play.json').then(res => res.json()),
                     fetch('./lexicon/draw.json').then(res => res.json())
                 ]);
-                
                 layout = l; board = b; tiles = t; theme = th; ui = u; rules = r; playRules = p; drawRules = d;
-
                 const dText = await fetch(playRules.validation.dictionaryUrl).then(r => r.text());
                 dictionary = new Set(dText.toUpperCase().split('\n'));
-
                 applyLexiconTheme(); buildHeader(); buildGrid(); buildUI(); initBag(); refillRack();
-            } catch (e) { console.error("Engine failure:", e); }
+            } catch (e) { console.error(e); }
         }
 
         function refillRack() {
-            const rackEl = document.getElementById('rack');
-            const currentTiles = document.querySelectorAll('.tile:not(.on-board)');
-            const needed = drawRules.mechanics.maxHandSize - currentTiles.length;
-            const startX = (window.innerWidth / 2) - ((drawRules.mechanics.maxHandSize * 50) / 2);
+            const rack = document.getElementById('rack');
+            const currentInHand = rack.querySelectorAll('.tile').length;
+            const needed = drawRules.mechanics.maxHandSize - currentInHand;
 
             for (let i = 0; i < needed && bag.length; i++) {
                 setTimeout(() => {
@@ -65,63 +76,32 @@
                     const t = document.createElement('div');
                     t.className = 'tile';
                     t.innerHTML = `<span>${data.l === '?' ? '' : data.l}</span><span class="val">${data.v}</span>`;
-                    t.dataset.letter = data.l;
-                    t.dataset.value = data.v;
+                    t.dataset.letter = data.l; t.dataset.value = data.v;
                     
-                    // Slot calculation
-                    const slotIndex = currentTiles.length + i;
-                    t.dataset.origX = `${startX + (slotIndex * 50)}px`;
-                    t.style.left = t.dataset.origX;
-                    t.style.bottom = "25px";
-                    
-                    // Drawing animation from draw.json
-                    if(drawRules.mechanics.animation === 'slide-up') {
-                        t.style.transform = 'translateY(100px)';
-                        t.style.opacity = '0';
-                        setTimeout(() => {
-                            t.style.transform = 'translateY(0)';
-                            t.style.opacity = '1';
-                        }, 50);
-                    }
-
+                    // Slide up animation
+                    t.style.opacity = '0';
+                    t.style.transform = 'translateY(20px)';
+                    rack.appendChild(t);
                     makeDraggable(t);
-                    document.body.appendChild(t);
+                    
+                    setTimeout(() => {
+                        t.style.opacity = '1';
+                        t.style.transform = 'translateY(0)';
+                    }, 50);
                 }, i * drawRules.mechanics.drawDelayMs);
             }
-        }
-
-        /* --- THEME, UI & INIT (STAYING CONSISTENT) --- */
-        function initBag() {
-            tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); });
-            bag.sort(() => Math.random() - 0.5);
-        }
-
-        function buildUI() {
-            const ctrl = document.getElementById('ui-controls');
-            ui.buttons.forEach(btn => {
-                const b = document.createElement('button');
-                b.className = btn.class; b.innerText = btn.text;
-                if(btn.action === 'recall') b.onclick = () => location.reload();
-                if(btn.action === 'play') b.onclick = handlePlayWord;
-                ctrl.appendChild(b);
-            });
         }
 
         function handlePlayWord() {
             document.querySelectorAll('.feedback-node').forEach(n => n.remove());
             if(!placedTiles.length) return;
-            const rows = placedTiles.map(p => Math.floor(p.index / board.cols));
-            const cols = placedTiles.map(p => p.index % board.cols);
-            const isHorizontal = rows.every(r => r === rows[0]);
-            const isVertical = cols.every(c => c === cols[0]);
 
-            if(!isHorizontal && !isVertical && !playRules.validation.diagonalAllowed) {
-                showFeedback(placedTiles[placedTiles.length-1].index, '❌', 'invalid-x');
-                return;
-            }
-
+            // Sort and scan logic
             placedTiles.sort((a,b) => a.index - b.index);
+            const rows = placedTiles.map(p => Math.floor(p.index / board.cols));
+            const isHorizontal = rows.every(r => r === rows[0]);
             const step = isHorizontal ? 1 : board.cols;
+
             let fullIndices = [], current = placedTiles[0].index;
             while(current >= 0 && getTileAt(current - step)) current -= step;
             while(current < board.size && getTileAt(current)) { fullIndices.push(current); current += step; }
@@ -135,29 +115,75 @@
                 document.getElementById('total-score').innerText = totalScore.toString().padStart(3, '0');
                 placedTiles.forEach(p => p.el.classList.add('fixed'));
                 placedTiles = [];
-                if(drawRules.logic.refillOnPlay) refillRack();
+                // ONLY REFILL AFTER SUCCESS
+                setTimeout(refillRack, 600);
             } else {
                 showFeedback(fullIndices[fullIndices.length-1], '❌', 'invalid-x');
             }
         }
 
-        function showFeedback(index, text, className) {
-            const cell = document.querySelector(`.cell[data-index="${index}"]`);
-            const rect = cell.getBoundingClientRect();
-            const gridRect = document.getElementById('grid').getBoundingClientRect();
-            const node = document.createElement('div');
-            node.className = `feedback-node ${className}`;
-            node.innerText = text;
-            node.style.left = `${(rect.right - gridRect.left) - 10}px`;
-            node.style.top = `${(rect.top - gridRect.top) - 10}px`;
-            document.getElementById('grid').appendChild(node);
+        function makeDraggable(el) {
+            let ox, oy;
+            const start = (e) => {
+                if(el.classList.contains('fixed')) return;
+                const t = e.touches ? e.touches[0] : e;
+                const r = el.getBoundingClientRect();
+                ox = t.clientX - r.left; oy = t.clientY - r.top;
+                
+                // Lift from Rack or Board
+                if(el.parentElement.id === 'rack' || el.parentElement.classList.contains('cell')) {
+                    placedTiles = placedTiles.filter(p => p.el !== el);
+                    el.classList.remove('on-board');
+                    document.body.appendChild(el); // Move to body for free movement
+                }
+                
+                el.classList.add('dragging');
+                el.style.left = `${t.clientX - ox}px`;
+                el.style.top = `${t.clientY - oy}px`;
+                if(e.cancelable) e.preventDefault();
+            };
+
+            const move = (e) => {
+                if(!el.classList.contains('dragging')) return;
+                const t = e.touches ? e.touches[0] : e;
+                el.style.left = `${t.clientX - ox}px`;
+                el.style.top = `${t.clientY - oy}px`;
+                if(e.cancelable) e.preventDefault();
+            };
+
+            const end = (e) => {
+                if(!el.classList.contains('dragging')) return;
+                el.classList.remove('dragging');
+                const r = el.getBoundingClientRect();
+                el.style.visibility = 'hidden';
+                const hit = document.elementFromPoint(r.left + r.width/2, r.top + r.height/2);
+                const target = hit?.closest('.cell');
+                el.style.visibility = 'visible';
+
+                if(target && !target.querySelector('.tile')) {
+                    target.appendChild(el);
+                    el.classList.add('on-board');
+                    placedTiles.push({el, index: parseInt(target.dataset.index)});
+                } else {
+                    // Return to Rack
+                    document.getElementById('rack').appendChild(el);
+                    el.style.left = 'auto'; el.style.top = 'auto';
+                }
+            };
+
+            el.addEventListener('touchstart', start, { passive: false });
+            window.addEventListener('touchmove', move, { passive: false });
+            window.addEventListener('touchend', end, { passive: false });
         }
 
+        /* --- UI & HELPERS --- */
+        function initBag() { tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }
         function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
-        function applyLexiconTheme() { const root = document.documentElement.style; Object.keys(theme.colors).forEach(key => root.setProperty(`--${key}`, theme.colors[key])); const styleSheet = document.createElement("style"); styleSheet.innerText = `.grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap}; border: 1px solid var(--gridLine); } .cell { background: var(--obsidian); backdrop-filter: blur(${theme.effects.blurStrength}); -webkit-backdrop-filter: blur(${theme.effects.blurStrength}); } .dl { color: var(--dl); box-shadow: inset 0 0 ${theme.effects.glowSize} var(--dl); } .tl { color: var(--tl); box-shadow: inset 0 0 ${theme.effects.glowSize} var(--tl); } .dw { color: var(--dw); box-shadow: inset 0 0 ${theme.effects.glowSize} var(--dw); } .tw { color: var(--tw); box-shadow: inset 0 0 ${theme.effects.glowSize} var(--tw); } .dd { color: var(--dd); box-shadow: inset 0 0 ${theme.effects.ddGlowSize} var(--dd); } #total-score { color: var(--gold); }`; document.head.appendChild(styleSheet); }
-        function buildHeader() { document.getElementById('game-header').innerHTML = `<div id="total-score" style="font-size: 2.2rem; font-weight: 900;">000</div>`; }
         function buildGrid() { const g = document.getElementById('grid'); for(let i=0; i < board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
-        function makeDraggable(el) { let ox, oy; const start = (e) => { if(el.classList.contains('fixed')) return; const t = e.touches ? e.touches[0] : e; const r = el.getBoundingClientRect(); ox = t.clientX - r.left; oy = t.clientY - r.top; if(el.parentElement.classList.contains('cell')) { placedTiles = placedTiles.filter(p => p.el !== el); document.body.appendChild(el); el.classList.remove('on-board'); el.style.width = '46px'; el.style.height = '46px'; } el.classList.add('dragging'); if(e.cancelable) e.preventDefault(); }; const move = (e) => { if(!el.classList.contains('dragging')) return; const t = e.touches ? e.touches[0] : e; el.style.left = `${t.clientX - ox}px`; el.style.top = `${t.clientY - oy}px`; el.style.bottom = 'auto'; if(e.cancelable) e.preventDefault(); }; const end = (e) => { if(!el.classList.contains('dragging')) return; el.classList.remove('dragging'); const r = el.getBoundingClientRect(); el.style.visibility = 'hidden'; const hit = document.elementFromPoint(r.left + r.width/2, r.top + r.height/2); const target = hit?.closest('.cell'); el.style.visibility = 'visible'; if(target && !target.querySelector('.tile')) { target.appendChild(el); el.classList.add('on-board'); el.style.width = '100%'; el.style.height = '100%'; placedTiles.push({el, index: parseInt(target.dataset.index)}); } else { el.style.left = el.dataset.origX; el.style.bottom = "25px"; el.style.top = 'auto'; el.style.width = '46px'; el.style.height = '46px'; } }; el.addEventListener('touchstart', start, { passive: false }); window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', end, { passive: false }); }
+        function buildHeader() { document.getElementById('game-header').innerHTML = `<div id="total-score" style="font-size: 2.2rem; font-weight: 900; color:var(--gold)">000</div>`; }
+        function buildUI() { const ctrl = document.getElementById('ui-controls'); ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; if(btn.action === 'recall') b.onclick = () => location.reload(); if(btn.action === 'play') b.onclick = handlePlayWord; ctrl.appendChild(b); }); }
+        function showFeedback(index, text, className) { const cell = document.querySelector(`.cell[data-index="${index}"]`); const rect = cell.getBoundingClientRect(); const gridRect = document.getElementById('grid').getBoundingClientRect(); const node = document.createElement('div'); node.className = `feedback-node ${className}`; node.innerText = text; node.style.left = `${(rect.right - gridRect.left) - 10}px`; node.style.top = `${(rect.top - gridRect.top) - 10}px`; document.getElementById('grid').appendChild(node); }
+        function applyLexiconTheme() { const root = document.documentElement.style; Object.keys(theme.colors).forEach(key => root.setProperty(`--${key}`, theme.colors[key])); const styleSheet = document.createElement("style"); styleSheet.innerText = `.grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap}; border: 1px solid var(--gridLine); } .cell { background: var(--obsidian); backdrop-filter: blur(${theme.effects.blurStrength}); -webkit-backdrop-filter: blur(${theme.effects.blurStrength}); } .dl { color: var(--dl); box-shadow: inset 0 0 ${theme.effects.glowSize} var(--dl); } .tl { color: var(--tl); box-shadow: inset 0 0 ${theme.effects.glowSize} var(--tl); } .dw { color: var(--dw); box-shadow: inset 0 0 ${theme.effects.glowSize} var(--dw); } .tw { color: var(--tw); box-shadow: inset 0 0 ${theme.effects.glowSize} var(--tw); } .dd { color: var(--dd); box-shadow: inset 0 0 ${theme.effects.ddGlowSize} var(--dd); } #total-score { color: var(--gold); }`; document.head.appendChild(styleSheet); }
 
         startEngine();
     </script>

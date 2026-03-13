@@ -1,0 +1,14 @@
+{
+  "mechanics": {
+    "maxHandSize": 7,
+    "autoReplenish": true,
+    "drawDelayMs": 300,
+    "animation": "slide-up"
+  },
+  "logic": {
+    "refillOnPlay": true,
+    "allowExchange": true,
+    "exchangeCost": "turn",
+    "wildcardFrequency": 0.02
+  }
+}

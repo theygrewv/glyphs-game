@@ -3,296 +3,168 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Glyphs Game: Master Build</title>
+    <title>Glyphs Game</title>
     <style>
-        :root {
-            --bg: #000000;
-            --grid-line: rgba(255, 255, 255, 0.15);
-            --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F; --dd: #FFFF00;
-            --gold: #FFD700;
-        }
-        * { box-sizing: border-box; }
-        body { 
-            background: var(--bg); color: #fff; margin: 0; font-family: 'Inter', -apple-system, sans-serif; 
-            display: flex; flex-direction: column; align-items: center; 
-            justify-content: space-between; height: 100vh;
-            padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
-            overflow: hidden; touch-action: none; 
-        }
-        header { width: 100%; padding: 10px; text-align: center; }
-        .score-box { font-size: 2rem; font-weight: 900; color: var(--gold); text-shadow: 0 0 10px rgba(255,215,0,0.3); }
-
-        /* SEAMLESS GRID */
-        .grid { 
-            display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); 
-            width: 95vw; max-width: 420px; aspect-ratio: 1/1; 
-            background: var(--grid-line); gap: 0px; border: 1px solid var(--grid-line);
-        }
-        .cell { background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 900; position: relative; border: 0.1px solid rgba(255,255,255,0.05); }
-        
-        /* Bonus Styles */
-        .s { background: #fff; color: #000; border-radius: 2px; font-size: 14px; z-index: 1; }
-        .dl { color: var(--dl); box-shadow: inset 0 0 8px var(--dl); }
-        .tl { color: var(--tl); box-shadow: inset 0 0 8px var(--tl); }
-        .dw { color: var(--dw); box-shadow: inset 0 0 8px var(--dw); }
-        .tw { color: var(--tw); box-shadow: inset 0 0 8px var(--tw); }
+        :root { --bg: #000; --grid-line: rgba(255, 255, 255, 0.2); --gold: #FFFF00; --dd: #FFFF00; }
+        body { background: var(--bg); color: #fff; margin: 0; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; }
+        header { text-align: center; padding: 10px; }
+        .score-box { font-size: 1.8rem; font-weight: 900; color: var(--gold); }
+        .grid { display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); width: 95vw; max-width: 420px; aspect-ratio: 1/1; background: var(--grid-line); gap: 1px; border: 1px solid var(--grid-line); }
+        .cell { background: #000; display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; font-size: 8px; font-weight: 900; }
+        .tile { width: 44px; height: 44px; background: #fff; color: #000; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; position: absolute; z-index: 10; }
+        .tile.on-board { width: 100%; height: 100%; border-radius: 0; border: 0.5px solid #000; left: 0 !important; top: 0 !important; }
+        .tile.locked { background: #ddd; pointer-events: none; }
+        .s { background: #fff; color: #000; border-radius: 2px; font-size: 14px; }
         .dd { color: var(--dd); box-shadow: inset 0 0 8px var(--dd); }
-
-        .rack-area { width: 100%; height: 90px; position: relative; display: flex; justify-content: center; }
-
-        /* SEAMLESS TILE DESIGN */
-        .tile {
-            width: 44px; height: 44px;
-            background: linear-gradient(135deg, #fff 0%, #bbb 100%);
-            border-radius: 4px; border: 1px solid #555;
-            display: flex; align-items: center; justify-content: center;
-            color: #000; font-size: 22px; font-weight: 900; position: absolute;
-            cursor: grab; z-index: 10; user-select: none;
-            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s ease;
-        }
-        .tile.on-board { 
-            position: absolute; width: 101%; height: 101%; border-radius: 0; border: 0.5px solid rgba(0,0,0,0.5);
-            left: 0 !important; top: 0 !important; transition: none; 
-        }
-        .tile.locked { opacity: 1; pointer-events: none; background: #eee; border: 0.5px solid #333; }
-        .tile.dragging { transition: none !important; opacity: 0.8; transform: scale(1.1); z-index: 1000; }
-        
-        /* GHOST SCORE BADGE */
-        #ghost-score {
-            position: fixed; padding: 2px 8px; border-radius: 4px; font-weight: 900; 
-            font-size: 12px; pointer-events: none; z-index: 2000; display: none;
-            transform: translate(-100%, -100%); transition: background 0.2s;
-        }
-        #ghost-score.valid { background: var(--gold); color: #000; box-shadow: 0 0 12px var(--gold); }
-        #ghost-score.invalid { background: #fff; color: #000; opacity: 0.9; }
-
-        .val { position: absolute; bottom: 2px; right: 3px; font-size: 8px; color: rgba(0,0,0,0.5); }
-        .controls { width: 100%; display: flex; justify-content: center; gap: 10px; padding: 15px; }
-        .btn {
-            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff; padding: 12px 20px; border-radius: 30px; font-weight: 900;
-            text-transform: uppercase; font-size: 0.7rem; transition: 0.2s;
-        }
-        .btn.primary { background: #fff; color: #000; border: none; }
+        #ghost-score { position: fixed; padding: 2px 8px; border-radius: 4px; font-weight: 900; font-size: 12px; display: none; z-index: 2000; transform: translate(-100%, -100%); }
+        #ghost-score.valid { background: var(--gold); color: #000; box-shadow: 0 0 10px var(--gold); }
+        #ghost-score.invalid { background: #fff; color: #000; opacity: 0.8; }
+        .rack-area { width: 100%; height: 80px; position: relative; display: flex; justify-content: center; }
+        .controls { padding: 10px; display: flex; gap: 10px; }
+        .btn { padding: 12px 20px; border-radius: 25px; border: none; font-weight: 900; text-transform: uppercase; font-size: 0.7rem; }
+        .primary { background: #fff; color: #000; }
     </style>
 </head>
 <body>
-    <header><div class="score-box" id="total-score">000</div><div style="font-size: 0.8rem; opacity: 0.6;">PB: <span id="pb-display">000</span></div></header>
-
+    <header>
+        <div class="score-box" id="total-score">000</div>
+        <div style="font-size: 0.8rem; opacity: 0.6;">PB: <span id="pb-display">000</span></div>
+    </header>
     <div class="grid" id="grid"></div>
     <div id="ghost-score">0</div>
-    
     <div class="controls">
         <button id="recall-btn" class="btn">Recall</button>
         <button id="shuffle-btn" class="btn">Shuffle</button>
-        <button id="play-btn" class="btn primary">Play Word</button>
+        <button id="play-btn" class="btn primary">Play</button>
     </div>
-    
     <div class="rack-area" id="rack-container"></div>
 
     <script>
         const grid = document.getElementById('grid');
-        const totalScoreEl = document.getElementById('total-score');
         const ghost = document.getElementById('ghost-score');
-        const playBtn = document.getElementById('play-btn');
-        const recallBtn = document.getElementById('recall-btn');
-        const shuffleBtn = document.getElementById('shuffle-btn');
-        
-        let totalScore = 0;
-        let placedTiles = [];
-        let dictionary = new Set();
-        const DICTIONARY_URL = 'https://raw.githubusercontent.com/dolph/dictionary/master/enable1.txt';
+        let totalScore = 0, placedTiles = [], dictionary = new Set();
+        let pb = localStorage.getItem('glyphs_pb') || 0;
+        document.getElementById('pb-display').innerText = pb.toString().padStart(3, '0');
 
-        // YOUR RESTORED COORDINATE MAP
-        const layout = {
-            60: { t: '✦', c: 's' }, 
-            0: { t: 'TL', c: 'tl' }, 10: { t: 'TL', c: 'tl' }, 24: { t: 'TL', c: 'tl' }, 30: { t: 'TL', c: 'tl' },
-            90: { t: 'TL', c: 'tl' }, 96: { t: 'TL', c: 'tl' }, 110: { t: 'TL', c: 'tl' }, 120: { t: 'TL', c: 'tl' },
-            3: { t: 'TW', c: 'tw' }, 7: { t: 'TW', c: 'tw' }, 33: { t: 'TW', c: 'tw' }, 43: { t: 'TW', c: 'tw' },
-            77: { t: 'TW', c: 'tw' }, 87: { t: 'TW', c: 'tw' }, 113: { t: 'TW', c: 'tw' }, 117: { t: 'TW', c: 'tw' },
-            12: { t: 'DL', c: 'dl' }, 20: { t: 'DL', c: 'dl' }, 36: { t: 'DL', c: 'dl' }, 40: { t: 'DL', c: 'dl' },
-            80: { t: 'DL', c: 'dl' }, 84: { t: 'DL', c: 'dl' }, 100: { t: 'DL', c: 'dl' }, 108: { t: 'DL', c: 'dl' },
-            16: { t: 'DW', c: 'dw' }, 48: { t: 'DW', c: 'dw' }, 50: { t: 'DW', c: 'dw' }, 56: { t: 'DW', c: 'dw' },
-            104: { t: 'DW', c: 'dw' }, 64: { t: 'DW', c: 'dw' }, 70: { t: 'DW', c: 'dw' }, 72: { t: 'DW', c: 'dw' },
-            26: { t: 'DD', c: 'dd' }, 28: { t: 'DD', c: 'dd' }, 46: { t: 'DD', c: 'dd' }, 52: { t: 'DD', c: 'dd' },
-            68: { t: 'DD', c: 'dd' }, 74: { t: 'DD', c: 'dd' }, 92: { t: 'DD', c: 'dd' }, 94: { t: 'DD', c: 'dd' }
-        };
+        const layout = { 60:{t:'✦',c:'s'}, 0:{t:'TL',c:'tl'}, 10:{t:'TL',c:'tl'}, 24:{t:'TL',c:'tl'}, 30:{t:'TL',c:'tl'}, 90:{t:'TL',c:'tl'}, 96:{t:'TL',c:'tl'}, 110:{t:'TL',c:'tl'}, 120:{t:'TL',c:'tl'}, 3:{t:'TW',c:'tw'}, 7:{t:'TW',c:'tw'}, 33:{t:'TW',c:'tw'}, 43:{t:'TW',c:'tw'}, 77:{t:'TW',c:'tw'}, 87:{t:'TW',c:'tw'}, 113:{t:'TW',c:'tw'}, 117:{t:'TW',c:'tw'}, 12:{t:'DL',c:'dl'}, 20:{t:'DL',c:'dl'}, 36:{t:'DL',c:'dl'}, 40:{t:'DL',c:'dl'}, 80:{t:'DL',c:'dl'}, 84:{t:'DL',c:'dl'}, 100:{t:'DL',c:'dl'}, 108:{t:'DL',c:'dl'}, 16:{t:'DW',c:'dw'}, 48:{t:'DW',c:'dw'}, 50:{t:'DW',c:'dw'}, 56:{t:'DW',c:'dw'}, 104:{t:'DW',c:'dw'}, 64:{t:'DW',c:'dw'}, 70:{t:'DW',c:'dw'}, 72:{t:'DW',c:'dw'}, 26:{t:'DD',c:'dd'}, 28:{t:'DD',c:'dd'}, 46:{t:'DD',c:'dd'}, 52:{t:'DD',c:'dd'}, 68:{t:'DD',c:'dd'}, 74:{t:'DD',c:'dd'}, 92:{t:'DD',c:'dd'}, 94:{t:'DD',c:'dd'} };
 
-        for (let i = 0; i < 121; i++) {
-            const cell = document.createElement('div');
-            cell.className = 'cell';
-            cell.dataset.index = i;
-            if (layout[i]) { cell.innerText = layout[i].t; cell.classList.add(layout[i].c); }
-            grid.appendChild(cell);
+        for(let i=0; i<121; i++){
+            const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i;
+            if(layout[i]){ c.innerText = layout[i].t; c.classList.add(layout[i].c); }
+            grid.appendChild(c);
         }
 
-        const distribution = [{l:'E',v:1,q:10},{l:'A',v:1,q:8},{l:'I',v:1,q:7},{l:'O',v:1,q:7},{l:'N',v:1,q:5},{l:'R',v:1,q:5},{l:'T',v:1,q:5},{l:'L',v:1,q:4},{l:'S',v:1,q:4},{l:'D',v:2,q:4},{l:'U',v:2,q:4},{l:'G',v:2,q:3},{l:'H',v:3,q:2},{l:'M',v:3,q:2},{l:'Y',v:3,q:2},{l:'B',v:4,q:2},{l:'C',v:4,q:2},{l:'F',v:4,q:2},{l:'P',v:4,q:2},{l:'W',v:4,q:2},{l:'K',v:5,q:1},{l:'V',v:5,q:2},{l:'J',v:8,q:1},{l:'X',v:8,q:1},{l:'Q',v:10,q:1},{l:'Z',v:10,q:1},{l:'?',v:0,q:2}];
-        let bag = [];
-        distribution.forEach(item => { for(let i=0; i<item.q; i++) bag.push({...item}); });
+        const dist = [{l:'E',v:1,q:10},{l:'A',v:1,q:8},{l:'I',v:1,q:7},{l:'O',v:1,q:7},{l:'N',v:1,q:5},{l:'R',v:1,q:5},{l:'T',v:1,q:5},{l:'L',v:1,q:4},{l:'S',v:1,q:4},{l:'D',v:2,q:4},{l:'U',v:2,q:4},{l:'G',v:2,q:3},{l:'H',v:3,q:2},{l:'M',v:3,q:2},{l:'Y',v:3,q:2},{l:'B',v:4,q:2},{l:'C',v:4,q:2},{l:'F',v:4,q:2},{l:'P',v:4,q:2},{l:'W',v:4,q:2},{l:'K',v:5,q:1},{l:'V',v:5,q:2},{l:'J',v:8,q:1},{l:'X',v:8,q:1},{l:'Q',v:10,q:1},{l:'Z',v:10,q:1},{l:'?',v:0,q:2}];
+        let bag = []; dist.forEach(d => { for(let i=0;i<d.q;i++) bag.push({...d}); });
         bag.sort(() => Math.random() - 0.5);
 
-        async function loadLexicon() {
-            try {
-                const response = await fetch(DICTIONARY_URL);
-                const text = await response.text();
-                dictionary = new Set(text.split('\n').map(w => w.trim().toUpperCase()));
-            } catch (e) { console.error("Lexicon failed"); }
+        async function loadLexicon(){
+            const r = await fetch('https://raw.githubusercontent.com/dolph/dictionary/master/enable1.txt');
+            const t = await r.text(); dictionary = new Set(t.split('\n').map(w => w.trim().toUpperCase()));
         }
 
-        function refillAndReflow() {
-            const hand = Array.from(document.querySelectorAll('.tile:not(.on-board):not(.locked)'));
+        function refill(){
+            const hand = Array.from(document.querySelectorAll('.tile:not(.on-board)'));
             const needed = 7 - hand.length;
-            const tileW = 50; 
-            const total = hand.length + Math.min(needed, bag.length);
-            const startX = (window.innerWidth / 2) - ((total * tileW) / 2);
-
-            hand.forEach((t, i) => {
-                const x = `${startX + (i * tileW)}px`;
-                t.dataset.origLeft = x; t.style.left = x; t.style.bottom = "20px";
-            });
-
-            for (let i = 0; i < Math.min(needed, bag.length); i++) {
-                const data = bag.pop();
-                const t = document.createElement('div');
-                const x = `${startX + ((hand.length + i) * tileW)}px`;
-                t.className = 'tile';
-                t.innerHTML = `<span>${data.l==='?'?'':data.l}</span><span class="val">${data.v}</span>`;
-                t.dataset.letter = data.l; t.dataset.value = data.v; t.dataset.origLeft = x;
-                t.style.left = x; t.style.bottom = "-100px"; 
+            const startX = (window.innerWidth / 2) - ((7 * 50) / 2);
+            for(let i=0; i<needed && bag.length; i++){
+                const d = bag.pop(); const t = document.createElement('div');
+                t.className = 'tile'; t.innerHTML = `<span>${d.l==='?'?'':d.l}</span><span class="val">${d.v}</span>`;
+                t.dataset.letter = d.l; t.dataset.value = d.v;
+                t.style.left = `${startX + ((hand.length + i) * 50)}px`; t.style.bottom = "20px";
+                if(d.l === '?') t.onclick = () => { if(!t.classList.contains('on-board')){ const l = prompt("Enter letter for Wildcard:").toUpperCase(); if(l.length===1) t.querySelector('span').innerText = l; t.dataset.letter = l; } };
                 addDrag(t); document.body.appendChild(t);
-                setTimeout(() => { t.style.bottom = "20px"; }, i * 80);
             }
         }
 
-        function calculateFullWordScore(fullWordTiles) {
-            let wordMultiplier = 1; let letterSum = 0;
-            fullWordTiles.forEach(t => {
-                let val = parseInt(t.el.dataset.value);
-                if (!t.el.classList.contains('locked')) {
-                    const cell = t.el.parentElement;
-                    if (cell.classList.contains('dl')) val *= 2;
-                    else if (cell.classList.contains('tl')) val *= 3;
-                    if (cell.classList.contains('dw') || cell.classList.contains('s')) wordMultiplier *= 2;
-                    else if (cell.classList.contains('tw')) wordMultiplier *= 3;
-                    else if (cell.classList.contains('dd')) wordMultiplier *= 4;
-                }
-                letterSum += val;
-            });
-            return letterSum * wordMultiplier;
-        }
-
-        function updateLiveScore() {
-            if (placedTiles.length === 0) { ghost.style.display = 'none'; return; }
-            const sorted = [...placedTiles].sort((a,b) => a.index - b.index);
-            const isV = sorted.length > 1 && (Math.abs(sorted[1].index - sorted[0].index) >= 11);
-            const step = isV ? 11 : 1;
+        function updateLiveScore(){
+            if(!placedTiles.length){ ghost.style.display='none'; return; }
+            const s = [...placedTiles].sort((a,b)=>a.index-b.index);
+            const diffs = s.slice(1).map((t,i)=>t.index - s[i].index);
+            // DIAGONAL PREVENTION: Only Allow horizontal (diff 1) or vertical (diff 11)
+            const isH = diffs.every(d => d === 1); const isV = diffs.every(d => d === 11);
+            if(!isH && !isV && s.length > 1){ ghost.className='invalid'; ghost.innerText='No Diagonals'; return; }
             
-            let fullWordTiles = [];
-            let curr = sorted[0].index;
-
-            // Scan Backward to find existing letters
-            while (curr - step >= 0) {
-                const p = document.querySelector(`.cell[data-index="${curr - step}"]`);
-                if (p?.querySelector('.tile')) {
-                    if (!isV && Math.floor((curr-step)/11) !== Math.floor(curr/11)) break;
-                    curr -= step;
-                } else break;
-            }
-
-            // Scan Forward to build full sequence
-            while (curr < 121) {
+            let full = [], step = isV ? 11 : 1, curr = s[0].index;
+            while(curr-step>=0 && document.querySelector(`.cell[data-index="${curr-step}"] .tile`)) curr-=step;
+            while(curr<121){
                 const cell = document.querySelector(`.cell[data-index="${curr}"]`);
-                const tEl = cell?.querySelector('.tile');
-                if (tEl) {
-                    fullWordTiles.push({ el: tEl, index: curr });
-                    if (!isV && Math.floor((curr+step)/11) !== Math.floor(curr/11)) break;
-                    curr += step;
-                } else if (sorted.some(t => t.index > curr)) { curr += step; continue; } 
-                else break;
+                const t = cell?.querySelector('.tile');
+                if(t){ full.push(t); curr+=step; } else break;
             }
-
-            const points = calculateFullWordScore(fullWordTiles);
-            const wordStr = fullWordTiles.map(t => t.el.querySelector('span').innerText).join('');
-            const lastTileRect = fullWordTiles[fullWordTiles.length-1].el.getBoundingClientRect();
-            
-            ghost.style.display = 'block';
-            ghost.innerText = points;
-            ghost.style.left = `${lastTileRect.right}px`;
-            ghost.style.top = `${lastTileRect.top}px`;
-            ghost.className = dictionary.has(wordStr) ? 'valid' : 'invalid';
+            const word = full.map(t => t.querySelector('span').innerText).join('');
+            ghost.style.display='block'; ghost.innerText = calculateScore(full);
+            const r = s[s.length-1].el.getBoundingClientRect(); ghost.style.left = `${r.right}px`; ghost.style.top = `${r.top}px`;
+            ghost.className = dictionary.has(word) ? 'valid' : 'invalid';
         }
 
-        function addDrag(el) {
+        function calculateScore(tiles){
+            let m=1, sum=0;
+            tiles.forEach(t => {
+                let v = parseInt(t.dataset.value);
+                if(!t.classList.contains('locked')){
+                    const c = t.parentElement;
+                    if(c.classList.contains('dl')) v*=2;
+                    if(c.classList.contains('dw')||c.classList.contains('s')) m*=2;
+                    if(c.classList.contains('dd')) m*=4;
+                }
+                sum += v;
+            });
+            return sum * m;
+        }
+
+        function addDrag(el){
             let ox, oy;
             const start = (e) => {
-                if (el.classList.contains('locked')) return;
-                const t = e.type.includes('touch') ? e.touches[0] : e;
-                const r = el.getBoundingClientRect();
-                ox = t.clientX - r.left; oy = t.clientY - r.top;
-                if(el.parentElement.classList.contains('cell')) {
-                    el.parentElement.classList.remove('occupied');
+                if(el.classList.contains('locked')) return;
+                const t = e.touches ? e.touches[0] : e;
+                const r = el.getBoundingClientRect(); ox = t.clientX-r.left; oy = t.clientY-r.top;
+                if(el.parentElement.classList.contains('cell')){
                     placedTiles = placedTiles.filter(p => p.el !== el);
-                    document.body.appendChild(el);
-                    el.classList.remove('on-board');
-                    el.style.position = 'absolute'; 
-                    el.style.left = `${t.clientX - ox}px`; 
-                    el.style.top = `${t.clientY - oy}px`;
+                    document.body.appendChild(el); el.classList.remove('on-board');
                 }
-                el.classList.add('dragging');
-                updateLiveScore();
+                el.style.zIndex = 1000;
             };
             const move = (e) => {
-                if (!el.classList.contains('dragging')) return;
-                const t = e.type.includes('touch') ? e.touches[0] : e;
-                el.style.left = `${t.clientX - ox}px`; el.style.top = `${t.clientY - oy}px`; el.style.bottom = 'auto';
+                const t = e.touches ? e.touches[0] : e;
+                el.style.left = `${t.clientX-ox}px`; el.style.top = `${t.clientY-oy}px`; el.style.bottom = 'auto';
             };
-            const end = () => {
-                if (!el.classList.contains('dragging')) return;
-                el.classList.remove('dragging');
+            const end = (e) => {
                 const r = el.getBoundingClientRect(); el.style.display = 'none';
-                const target = document.elementFromPoint(r.left + 22, r.top + 22);
-                el.style.display = 'flex';
-                const cell = target?.closest('.cell');
-                if (cell && !cell.querySelector('.tile')) {
-                    el.classList.add('on-board'); cell.appendChild(el); cell.classList.add('occupied');
-                    placedTiles.push({ el: el, index: parseInt(cell.dataset.index) });
-                } else { returnHome(el); }
+                const target = document.elementFromPoint(r.left+22, r.top+22)?.closest('.cell');
+                el.style.display = 'flex'; el.style.zIndex = 10;
+                if(target && !target.querySelector('.tile')){
+                    el.classList.add('on-board'); target.appendChild(el);
+                    placedTiles.push({el:el, index:parseInt(target.dataset.index)});
+                } else {
+                    el.style.bottom = "20px"; el.style.top = "auto";
+                }
                 updateLiveScore();
             };
-            el.addEventListener('touchstart', start); window.addEventListener('touchmove', move); window.addEventListener('touchend', end);
-            el.addEventListener('mousedown', start); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+            el.ontouchstart = start; window.ontouchmove = move; window.ontouchend = end;
         }
 
-        function returnHome(el) {
-            document.body.appendChild(el);
-            el.classList.remove('on-board');
-            el.style.left = el.dataset.origLeft; el.style.bottom = '20px'; el.style.top = 'auto';
-        }
+        document.getElementById('shuffle-btn').onclick = () => {
+            const rack = Array.from(document.querySelectorAll('.tile:not(.on-board)')).sort(()=>Math.random()-0.5);
+            const startX = (window.innerWidth / 2) - ((7 * 50) / 2);
+            rack.forEach((t, i) => t.style.left = `${startX + (i * 50)}px`);
+        };
 
-        playBtn.addEventListener('click', () => {
-            if (ghost.className !== 'valid') return;
+        document.getElementById('recall-btn').onclick = () => {
+            placedTiles.forEach(p => { document.body.appendChild(p.el); p.el.classList.remove('on-board'); p.el.style.bottom="20px"; p.el.style.top="auto"; });
+            placedTiles = []; ghost.style.display = 'none';
+        };
+
+        document.getElementById('play-btn').onclick = () => {
+            if(ghost.className !== 'valid') return;
             totalScore += parseInt(ghost.innerText);
-            totalScoreEl.innerText = totalScore.toString().padStart(3, '0');
-            placedTiles.forEach(t => t.el.classList.add('locked'));
-            placedTiles = [];
-            ghost.style.display = 'none';
-            refillAndReflow();
-        });
+            document.getElementById('total-score').innerText = totalScore.toString().padStart(3, '0');
+            if(totalScore > pb){ pb = totalScore; localStorage.setItem('glyphs_pb', pb); document.getElementById('pb-display').innerText = pb.toString().padStart(3, '0'); }
+            placedTiles.forEach(p => p.el.classList.add('locked'));
+            placedTiles = []; ghost.style.display = 'none'; refill();
+        };
 
-        shuffleBtn.addEventListener('click', () => {
-            const hand = [...document.querySelectorAll('.tile:not(.on-board):not(.locked)')];
-            hand.sort(() => Math.random() - 0.5);
-            refillAndReflow();
-        });
-
-        recallBtn.addEventListener('click', () => {
-            placedTiles.forEach(t => returnHome(t.el));
-            placedTiles = [];
-            ghost.style.display = 'none';
-            refillAndReflow();
-        });
-
-        loadLexicon(); refillAndReflow();
+        loadLexicon(); refill();
     </script>
 </body>
 </html>

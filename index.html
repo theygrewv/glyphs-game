@@ -4,54 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Glyphs: Lexicon Engine</title>
-    <style>
-        :root { 
-            --bg: #050505; --grid-line: rgba(255, 255, 255, 0.1); --gold: #FFFF00;
-            --dl: grey; --tl: grey; --dw: grey; --tw: grey; --dd: grey;
-            --obsidian: rgba(20, 20, 20, 0.85); --blur: 10px; --gap: 1px;
-        }
+    <style id="dynamic-styles">
+        /* Base Shell - Everything else comes from Lexicon */
+        :root { --bg: #000; }
         body { background: var(--bg); color: #fff; margin: 0; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 20px 0; }
-        
-        .grid { 
-            display: grid; grid-template-columns: repeat(var(--cols, 11), 1fr); 
-            width: 92vw; max-width: 400px; aspect-ratio: 1/1; 
-            background: var(--grid-line); gap: var(--gap); border: 1px solid var(--grid-line); 
-        }
-        .cell { 
-            background: var(--obsidian); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
-            display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; font-size: 8px; font-weight: 900;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
-        }
-
-        
-        /* Universal Neon Inset Glows */
-        .dl { color: var(--dl); text-shadow: 0 0 8px var(--dl); box-shadow: inset 0 0 var(--glow) var(--dl); }
-        .tl { color: var(--tl); text-shadow: 0 0 8px var(--tl); box-shadow: inset 0 0 var(--glow) var(--tl); }
-        .dw { color: var(--dw); text-shadow: 0 0 8px var(--dw); box-shadow: inset 0 0 var(--glow) var(--dw); }
-        .tw { color: var(--tw); text-shadow: 0 0 8px var(--tw); box-shadow: inset 0 0 var(--glow) var(--tw); }
-        .dd { color: var(--dd); text-shadow: 0 0 8px var(--dd); box-shadow: inset 0 0 var(--ddGlow) var(--dd); }
-        .dd { color: var(--dd); box-shadow: inset 0 0 15px var(--dd); text-shadow: 0 0 10px var(--dd); }
-        .s { background: #fff; color: #000; font-size: 22px; width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; border-radius: 2px; }
-
+        .grid { display: grid; width: 92vw; max-width: 400px; aspect-ratio: 1/1; }
+        .cell { display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; font-size: 8px; font-weight: 900; }
+        .tile { width: 46px; height: 46px; background: #fff; color: #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; position: absolute; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .tile.on-board { width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; }
+        .val { position: absolute; bottom: 2px; right: 4px; font-size: 9px; opacity: 0.6; }
+        .controls { display: flex; gap: 10px; }
         .btn { background: #222; color: #fff; border: none; padding: 14px 24px; border-radius: 30px; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; }
-        .primary { background: #fff; color: #000; padding: 14px 32px; }
+        .primary { background: #fff; color: #000; }
     </style>
 </head>
 <body>
-    <header><div id="total-score" style="font-size: 2.2rem; font-weight: 900; color: var(--gold);">000</div></header>
+    <header><div id="total-score" style="font-size: 2.2rem; font-weight: 900;">000</div></header>
     <div class="grid" id="grid"></div>
-    <div class="controls">
-        <button class="btn" onclick="location.reload()">Reset</button>
-        <button id="play-btn" class="btn primary">Play Word</button>
-    </div>
+    <div class="controls" id="ui-controls"></div>
     <div id="rack" style="height: 100px; width: 100%; position: relative;"></div>
 
     <script>
-        let layout, board, tiles, theme;
+        let layout, board, tiles, theme, bag = [];
 
-        async function init() {
+        async function startEngine() {
             try {
-                // Fetch using relative paths
+                // 1. Fetch Lexicons
                 const [l, b, t, th] = await Promise.all([
                     fetch('./lexicon/layout.json').then(r => r.json()),
                     fetch('./lexicon/board.json').then(r => r.json()),
@@ -61,31 +39,42 @@
                 
                 layout = l; board = b; tiles = t; theme = th;
 
-                applyTheme();
-                renderBoard();
-                console.log("Lexicon Engine Online 🤙🏽");
-            } catch (e) {
-                console.error("Initialization failed:", e);
-            }
+                // 2. Build the app from Lexicon data
+                applyLexiconTheme();
+                buildGrid();
+                initGameSystems();
+                
+                console.log("App built successfully from Lexicon 🤙🏽");
+            } catch (e) { console.error("Lexicon parse error:", e); }
         }
 
-        
-        function applyTheme() {
+        function applyLexiconTheme() {
             const root = document.documentElement.style;
+            // Inject Colors
             Object.keys(theme.colors).forEach(key => root.setProperty(`--${key}`, theme.colors[key]));
+            
+            // Inject Grid Geometry
             root.setProperty('--cols', board.cols);
             root.setProperty('--gap', board.gap || '1px');
-            root.setProperty('--blur', theme.effects.blurStrength || '10px');
-            root.setProperty('--glow', theme.effects.glowSize || '12px');
-            root.setProperty('--ddGlow', theme.effects.ddGlowSize || '15px');
-        }
-`, theme.colors[key]));
-            root.setProperty('--cols', board.cols);
-            root.setProperty('--gap', board.gap || '1px');
-            root.setProperty('--blur', theme.effects.blurStrength || '10px');
+            
+            // Build the Glow CSS dynamically based on Lexicon effects
+            const styleSheet = document.createElement("style");
+            styleSheet.innerText = `
+                body { background: var(--bg); }
+                .grid { grid-template-columns: repeat(${board.cols}, 1fr); gap: var(--gap); border: 1px solid var(--gridLine); }
+                .cell { background: var(--obsidian); backdrop-filter: blur(${theme.effects.blurStrength}); -webkit-backdrop-filter: blur(${theme.effects.blurStrength}); }
+                .dl { color: var(--dl); text-shadow: 0 0 8px var(--dl); box-shadow: inset 0 0 ${theme.effects.glowSize} var(--dl); }
+                .tl { color: var(--tl); text-shadow: 0 0 8px var(--tl); box-shadow: inset 0 0 ${theme.effects.glowSize} var(--tl); }
+                .dw { color: var(--dw); text-shadow: 0 0 8px var(--dw); box-shadow: inset 0 0 ${theme.effects.glowSize} var(--dw); }
+                .tw { color: var(--tw); text-shadow: 0 0 8px var(--tw); box-shadow: inset 0 0 ${theme.effects.glowSize} var(--tw); }
+                .dd { color: var(--dd); text-shadow: 0 0 8px var(--dd); box-shadow: inset 0 0 ${theme.effects.ddGlowSize} var(--dd); }
+                .s { background: #fff; color: #000; font-size: 22px; width: 90%; height: 90%; }
+                #total-score { color: var(--gold); }
+            `;
+            document.head.appendChild(styleSheet);
         }
 
-        function renderBoard() {
+        function buildGrid() {
             const g = document.getElementById('grid');
             g.innerHTML = '';
             for(let i=0; i < board.size; i++) {
@@ -99,8 +88,35 @@
             }
         }
 
-        // Start the engine
-        init();
+        function initGameSystems() {
+            // Build Bag from tiles.json
+            tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); });
+            bag.sort(() => Math.random() - 0.5);
+            
+            // Build UI Buttons
+            const ctrl = document.getElementById('ui-controls');
+            ctrl.innerHTML = `
+                <button class="btn" onclick="location.reload()">Reset</button>
+                <button class="btn primary">Play Word</button>
+            `;
+            
+            refillRack();
+        }
+
+        function refillRack() {
+            const startX = (window.innerWidth / 2) - ((7 * 50) / 2);
+            for(let i=0; i < 7 && bag.length; i++) {
+                const data = bag.pop();
+                const t = document.createElement('div');
+                t.className = 'tile';
+                t.innerHTML = `<span>${data.l === '?' ? '' : data.l}</span><span class="val">${data.v}</span>`;
+                t.style.left = `${startX + (i * 50)}px`;
+                t.style.bottom = "25px";
+                document.body.appendChild(t);
+            }
+        }
+
+        startEngine();
     </script>
 </body>
 </html>

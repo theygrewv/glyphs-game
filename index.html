@@ -18,7 +18,12 @@
         .score-box { font-size: 1.8rem; font-weight: 900; color: var(--gold); }
         .grid { display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr); width: 95vw; max-width: 420px; aspect-ratio: 1/1; background: var(--grid-line); gap: 0.5px; border: 1px solid var(--grid-line); }
         .cell { background: #000; display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; font-size: 7px; font-weight: 900; overflow: hidden; color: #fff; border: 0.1px solid rgba(255,255,255,0.1); }
-        .tile { width: 44px; height: 44px; background: #fff; color: #000; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; position: absolute; z-index: 10; }
+        .tile { 
+    width: 42px; height: 42px; background: #fff; color: #000; 
+    border-radius: 4px; display: flex; align-items: center; justify-content: center; 
+    font-size: 22px; font-weight: 900; position: absolute; z-index: 100; 
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3); touch-action: none;
+}
         .tile.on-board { width: 100%; height: 100%; border-radius: 0; border: 0.5px solid #000; left: 0 !important; top: 0 !important; }
         .tile.locked { background: #ddd; pointer-events: none; }
         .s { background: #fff; color: #000; border-radius: 2px; font-size: 18px; width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; z-index: 1; }
@@ -126,16 +131,71 @@
             return sum * m;
         }
 
-        function addDrag(el){
-            let ox, oy;
+        
+        function addDrag(el) {
+            let ox, oy, startX, startY;
+            
             const start = (e) => {
-                if(el.classList.contains('locked')) return;
+                if (el.classList.contains('locked')) return;
                 const t = e.touches ? e.touches[0] : e;
-                const r = el.getBoundingClientRect(); ox = t.clientX-r.left; oy = t.clientY-r.top;
-                if(el.parentElement.classList.contains('cell')){
+                const r = el.getBoundingClientRect();
+                
+                // Store initial offsets
+                ox = t.clientX - r.left;
+                oy = t.clientY - r.top;
+                
+                // If picking up from board, clean up state
+                if (el.parentElement.classList.contains('cell')) {
                     placedTiles = placedTiles.filter(p => p.el !== el);
-                    document.body.appendChild(el); el.classList.remove('on-board');
+                    el.parentElement.classList.remove('occupied');
+                    document.body.appendChild(el);
+                    el.classList.remove('on-board');
                 }
+                
+                el.style.zIndex = 1000;
+                el.classList.add('dragging');
+            };
+
+            const move = (e) => {
+                if (!el.classList.contains('dragging')) return;
+                const t = e.touches ? e.touches[0] : e;
+                el.style.left = `${t.clientX - ox}px`;
+                el.style.top = `${t.clientY - oy}px`;
+                el.style.bottom = 'auto';
+            };
+
+            const end = (e) => {
+                if (!el.classList.contains('dragging')) return;
+                el.classList.remove('dragging');
+                el.style.zIndex = 100;
+
+                const r = el.getBoundingClientRect();
+                el.style.display = 'none'; // Hide to find what's underneath
+                const target = document.elementFromPoint(r.left + 21, r.top + 21);
+                el.style.display = 'flex';
+                
+                const cell = target?.closest('.cell');
+
+                if (cell && !cell.querySelector('.tile')) {
+                    // Snap to grid
+                    el.classList.add('on-board');
+                    cell.appendChild(el);
+                    placedTiles.push({ el: el, index: parseInt(cell.dataset.index) });
+                } else {
+                    // Return to rack
+                    returnHome(el);
+                }
+                updateLiveScore();
+            };
+
+            el.onmousedown = start;
+            el.ontouchstart = start;
+            window.onmousemove = move;
+            window.ontouchmove = move;
+            window.onmouseup = end;
+            window.ontouchend = end;
+        }
+
                 el.style.zIndex = 1000;
             };
             const move = (e) => {

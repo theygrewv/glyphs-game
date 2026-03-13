@@ -55,7 +55,7 @@
             Object.keys(theme.colors).forEach(key => root.setProperty(`--${key}`, theme.colors[key]));
             const styleSheet = document.createElement("style");
             styleSheet.innerText = `
-                .grid { grid-template-columns: repeat(${board.cols}, 1fr); gap: ${board.gap}; border: 1px solid var(--gridLine); }
+                .grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap}; border: 1px solid var(--gridLine); align-content: center; }
                 .cell { background: var(--obsidian); backdrop-filter: blur(${theme.effects.blurStrength}); -webkit-backdrop-filter: blur(${theme.effects.blurStrength}); }
                 .dl { color: var(--dl); text-shadow: 0 0 8px var(--dl); box-shadow: inset 0 0 ${theme.effects.glowSize} var(--dl); }
                 .tl { color: var(--tl); text-shadow: 0 0 8px var(--tl); box-shadow: inset 0 0 ${theme.effects.glowSize} var(--tl); }

@@ -2,5 +2,6 @@
   "size": 121,
   "cols": 11,
   "gap": "0.8px",
+  "cellHeight": "1fr",
   "theme": "obsidian-frosted"
 }

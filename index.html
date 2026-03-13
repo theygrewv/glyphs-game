@@ -9,16 +9,60 @@
         --bg: #000; --grid-line: rgba(255, 255, 255, 0.15); --gold: #FFFF00;
         --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F; --dd: #FFFF00;
     }
-    body { background: var(--bg); color: #fff; margin: 0; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; }
-    .grid { display: grid; grid-template-columns: repeat(11, 1fr); width: 95vw; max-width: 420px; aspect-ratio: 1/1; background: var(--grid-line); gap: 0.8px; border: 1px solid var(--grid-line); }
-    .cell { background: #000; display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; font-size: 8px; font-weight: 900; color: #fff; }
+    body { 
+        background: var(--bg); color: #fff; margin: 0; font-family: sans-serif; 
+        height: 100vh; display: flex; flex-direction: column; align-items: center; 
+        justify-content: space-between; overflow: hidden; touch-action: none; 
+        padding: 20px 0;
+    }
+    header { text-align: center; }
+    .score-box { font-size: 2.2rem; font-weight: 900; color: var(--gold); margin-bottom: 2px; }
+    .pb-label { font-size: 0.9rem; opacity: 0.6; font-weight: bold; }
+
+    .grid { 
+        display: grid; grid-template-columns: repeat(11, 1fr); 
+        width: 92vw; max-width: 400px; aspect-ratio: 1/1; 
+        background: var(--grid-line); gap: 1px; border: 1px solid var(--grid-line); 
+    }
+    .cell { 
+        background: #000; display: flex; align-items: center; justify-content: center; 
+        position: relative; width: 100%; height: 100%; font-size: 8px; font-weight: 900; 
+    }
     
-    .dl { color: var(--dl); text-shadow: 0 0 10px var(--dl); }
-    .tl { color: var(--tl); text-shadow: 0 0 10px var(--tl); }
-    .dw { color: var(--dw); text-shadow: 0 0 10px var(--dw); }
-    .tw { color: var(--tw); text-shadow: 0 0 10px var(--tw); }
-    .dd { color: var(--dd); box-shadow: inset 0 0 15px var(--dd); text-shadow: 0 0 10px var(--dd); }
-    .s { background: #fff; color: #000; font-size: 20px; width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; }
+    /* Neon Glows */
+    .dl { color: var(--dl); text-shadow: 0 0 8px var(--dl); }
+    .tl { color: var(--tl); text-shadow: 0 0 8px var(--tl); }
+    .dw { color: var(--dw); text-shadow: 0 0 8px var(--dw); }
+    .tw { color: var(--tw); text-shadow: 0 0 8px var(--tw); }
+    .dd { color: var(--dd); box-shadow: inset 0 0 12px var(--dd); text-shadow: 0 0 8px var(--dd); }
+    .s { background: #fff; color: #000; font-size: 22px; width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; border-radius: 2px; }
+
+    /* Tiles */
+    .tile { 
+        width: 46px; height: 46px; background: #fff; color: #000; border-radius: 6px; 
+        display: flex; align-items: center; justify-content: center; font-size: 24px; 
+        font-weight: 900; position: absolute; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.5); 
+    }
+    .tile.on-board { width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; border: 0.5px solid #000; }
+    .val { position: absolute; bottom: 2px; right: 4px; font-size: 9px; opacity: 0.6; }
+
+    /* Buttons - The 'Pill' Look */
+    .controls { width: 100%; display: flex; justify-content: center; gap: 12px; padding-bottom: 10px; }
+    .btn { 
+        background: #222; color: #fff; border: none; padding: 14px 24px; 
+        border-radius: 30px; font-weight: 900; font-size: 0.75rem; 
+        text-transform: uppercase; letter-spacing: 1px;
+    }
+    .btn.primary { background: #fff; color: #000; padding: 14px 32px; }
+
+    #ghost-score { 
+        position: fixed; padding: 4px 12px; border-radius: 6px; font-weight: 900; 
+        font-size: 14px; z-index: 2000; pointer-events: none; display: none;
+    }
+    #ghost-score.valid { background: var(--gold); color: #000; box-shadow: 0 0 15px var(--gold); }
+    #ghost-score.invalid { background: #fff; color: #000; }
+
+    .rack-area { width: 100%; height: 100px; position: relative; display: flex; justify-content: center; align-items: center; background: rgba(255,255,255,0.02); }
 </style>
 </head>
 <body>

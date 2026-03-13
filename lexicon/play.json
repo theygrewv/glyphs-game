@@ -3,15 +3,17 @@
     "dictionaryUrl": "https://raw.githubusercontent.com/dolph/dictionary/master/enable1.txt",
     "minWordLength": 2,
     "requireCenterStart": true,
-    "mustConnect": true
+    "mustConnect": true,
+    "allowCrossWords": true,
+    "diagonalAllowed": false
   },
-  "mechanics": {
-    "clearBoardOnPlay": false,
-    "refillRackOnPlay": true,
-    "scoringAnimation": "float-up"
+  "vectors": {
+    "horizontal": {"step": 1, "check": "left-right"},
+    "vertical": {"step": 11, "check": "up-down"}
   },
-  "rewards": {
-    "bingoBonus": 50,
-    "bingoTileCount": 7
+  "feedback": {
+    "invalidIcon": "❌",
+    "validColor": "var(--gold)",
+    "errorColor": "#FF0000"
   }
 }

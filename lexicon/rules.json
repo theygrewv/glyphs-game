@@ -1,19 +1,15 @@
 {
   "placement": {
     "requireEmpty": true,
-    "allowOverwrites": false,
-    "snapTolerance": 40,
-    "collisionRadius": 20,
-    "validation": "ortho-only"
+    "snapTolerance": 50,
+    "preventScroll": true
   },
   "mobility": {
     "allowBoardToBoard": true,
-    "allowReturnToRack": true,
     "liftScale": 1.1
   },
   "dragging": {
     "activeScale": 1.2,
-    "activeOpacity": 0.85,
-    "ghostScoreOnDrag": true
+    "activeOpacity": 0.95
   }
 }

@@ -10,8 +10,8 @@
         .grid { display: grid; width: 92vw; max-width: 400px; aspect-ratio: 1/1; }
         .cell { display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; font-size: 8px; font-weight: 900; pointer-events: none; }
         .tile { width: 46px; height: 46px; background: #fff; color: #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; position: absolute; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.5); touch-action: none; transition: transform 0.1s; }
-        .tile.on-board { width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; }
-        .tile.dragging { transform: scale(1.1); opacity: 0.8; z-index: 1000; }
+        .tile.on-board { width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; border: 0.5px solid rgba(0,0,0,0.2); }
+        .tile.dragging { opacity: 0.8; z-index: 1000; }
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 9px; opacity: 0.6; }
         .controls { display: flex; gap: 10px; }
         .btn { background: #222; color: #fff; border: none; padding: 14px 24px; border-radius: 30px; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; }
@@ -37,17 +37,8 @@
                     fetch('./lexicon/ui.json').then(res => res.json()),
                     fetch('./lexicon/rules.json').then(res => res.json())
                 ]);
-                
                 layout = l; board = b; tiles = t; theme = th; ui = u; rules = r;
-
-                applyLexiconTheme();
-                buildHeader();
-                buildGrid();
-                buildUI();
-                initBag();
-                refillRack();
-                
-                console.log("Collision Engine Active 🤙🏽");
+                applyLexiconTheme(); buildHeader(); buildGrid(); buildUI(); initBag(); refillRack();
             } catch (e) { console.error("Engine failure:", e); }
         }
 
@@ -68,9 +59,7 @@
             document.head.appendChild(styleSheet);
         }
 
-        function buildHeader() {
-            document.getElementById('game-header').innerHTML = `<div id="total-score" style="font-size: 2.2rem; font-weight: 900;">${ui.header.scoreLabel}</div>`;
-        }
+        function buildHeader() { document.getElementById('game-header').innerHTML = `<div id="total-score" style="font-size: 2.2rem; font-weight: 900;">${ui.header.scoreLabel}</div>`; }
 
         function buildGrid() {
             const g = document.getElementById('grid');
@@ -104,31 +93,32 @@
                 const t = document.createElement('div');
                 t.className = 'tile';
                 t.innerHTML = `<span>${data.l === '?' ? '' : data.l}</span><span class="val">${data.v}</span>`;
-                t.dataset.letter = data.l;
-                t.style.left = `${startX + (i * 50)}px`;
-                t.style.bottom = "25px";
-                makeDraggable(t);
-                document.body.appendChild(t);
+                t.dataset.letter = data.l; t.dataset.originalRackX = `${startX + (i * 50)}px`;
+                t.style.left = t.dataset.originalRackX; t.style.bottom = "25px";
+                makeDraggable(t); document.body.appendChild(t);
             }
         }
 
         function makeDraggable(el) {
-            let offsetX, offsetY, originalX, originalY;
+            let offsetX, offsetY;
 
             const onStart = (e) => {
                 const t = e.touches ? e.touches[0] : e;
                 const rect = el.getBoundingClientRect();
-                originalX = el.style.left;
-                originalY = el.style.bottom;
                 offsetX = t.clientX - rect.left;
                 offsetY = t.clientY - rect.top;
                 
+                // Mobility Rule: If lifting from board, clear the cell
                 if (el.parentElement.classList.contains('cell')) {
                     placedTiles = placedTiles.filter(p => p.el !== el);
                     document.body.appendChild(el);
                     el.classList.remove('on-board');
+                    // Reset sizing back to rack-style during drag
+                    el.style.width = '46px'; el.style.height = '46px';
                 }
+
                 el.classList.add('dragging');
+                el.style.transform = `scale(${rules.mobility.liftScale})`;
             };
 
             const onMove = (e) => {
@@ -142,20 +132,25 @@
             const onEnd = (e) => {
                 if (!el.classList.contains('dragging')) return;
                 el.classList.remove('dragging');
+                el.style.transform = 'scale(1)';
+                
                 const rect = el.getBoundingClientRect();
                 el.style.display = 'none';
                 const target = document.elementFromPoint(rect.left + rect.width/2, rect.top + rect.height/2)?.closest('.cell');
                 el.style.display = 'flex';
 
-                // THE LEXICON RULE: Only directly in a blank space
+                // Playable Spot Logic
                 if (target && !target.querySelector('.tile')) {
                     target.appendChild(el);
                     el.classList.add('on-board');
+                    el.style.width = '100%'; el.style.height = '100%';
                     placedTiles.push({ el, index: parseInt(target.dataset.index) });
                 } else {
-                    el.style.left = originalX;
+                    // Snap back to original rack position if spot is taken or invalid
+                    el.style.left = el.dataset.originalRackX;
                     el.style.bottom = "25px";
                     el.style.top = 'auto';
+                    el.style.width = '46px'; el.style.height = '46px';
                 }
             };
 

@@ -5,6 +5,11 @@
     "snapTolerance": 25,
     "validation": "ortho-only"
   },
+  "mobility": {
+    "allowBoardToBoard": true,
+    "allowReturnToRack": true,
+    "liftScale": 1.15
+  },
   "dragging": {
     "activeScale": 1.2,
     "activeOpacity": 0.9,

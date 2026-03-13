@@ -1,14 +1,13 @@
 {
   "mechanics": {
     "maxHandSize": 7,
-    "autoReplenish": true,
-    "drawDelayMs": 300,
+    "refillTrigger": "onPlaySuccess",
+    "drawDelayMs": 200,
+    "spacing": "4px",
     "animation": "slide-up"
   },
-  "logic": {
-    "refillOnPlay": true,
-    "allowExchange": true,
-    "exchangeCost": "turn",
-    "wildcardFrequency": 0.02
+  "layout": {
+    "autoCenter": true,
+    "preventStacking": true
   }
 }

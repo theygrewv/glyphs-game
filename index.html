@@ -5,79 +5,95 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Glyphs: Lexicon Engine</title>
     <style>
-    :root { 
-        --bg: #000; --grid-line: rgba(255,255,255,0.1); 
-        --dl: grey; --tl: grey; --dw: grey; --tw: grey; --dd: grey; --gold: gold;
-        --blur: 10px; --gap: 1px;
-    }
-    .grid { 
-        display: grid; 
-        grid-template-columns: repeat(var(--cols, 11), 1fr); 
-        width: 92vw; max-width: 400px; aspect-ratio: 1/1; 
-        background: var(--grid-line); 
-        gap: var(--gap); 
-        border: 1px solid var(--grid-line); 
-    }
-    .cell { 
-        background: rgba(20,20,20,0.8); 
-        backdrop-filter: blur(var(--blur)); 
-        -webkit-backdrop-filter: blur(var(--blur));
-        display: flex; align-items: center; justify-content: center; 
-        position: relative; width: 100%; height: 100%; 
-        font-size: 8px; font-weight: 900;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
-    }
-</style>
-</head>
-<body>
-    <header>
-        <div class="score-box" id="total-score">000</div>
-        <div style="font-size: 0.8rem; opacity: 0.6;">PB: <span id="pb-display">000</span></div>
-    </header>
-    <div class="grid" id="grid"></div>
-    <div id="ghost-score">0</div>
-    <div class="controls">
-        <button id="recall-btn" class="btn">Recall</button>
-        <button id="shuffle-btn" class="btn">Shuffle</button>
-        <button id="play-btn" class="btn primary">Play Word</button>
-    </div>
-    <div class="rack-area" id="rack-container"></div>
-
-    <script>
-        let config = {}; 
-        let totalScore = 0, placedTiles = [], dictionary = new Set();
-        let pb = localStorage.getItem('glyphs_pb') || 0;
-        document.getElementById('pb-display').innerText = pb.toString().padStart(3, '0');
-
-        async function initGame() {
-            // THE LEXICON FETCH
-            const res = await fetch('config.json');
-            config = await res.json();
-            
-            renderBoard();
-            await loadLexicon();
-            refillRack();
+        :root { 
+            --bg: #050505; --grid-line: rgba(255, 255, 255, 0.1); --gold: #FFFF00;
+            --dl: grey; --tl: grey; --dw: grey; --tw: grey; --dd: grey;
+            --obsidian: rgba(20, 20, 20, 0.85); --blur: 10px; --gap: 1px;
+        }
+        body { background: var(--bg); color: #fff; margin: 0; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 20px 0; }
+        
+        /* Obsidian Frosted Grid */
+        .grid { 
+            display: grid; grid-template-columns: repeat(var(--cols, 11), 1fr); 
+            width: 92vw; max-width: 400px; aspect-ratio: 1/1; 
+            background: var(--grid-line); gap: var(--gap); border: 1px solid var(--grid-line); 
+        }
+        .cell { 
+            background: var(--obsidian); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
+            display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; font-size: 8px; font-weight: 900;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
         }
 
-        function renderBoard() {
-            const grid = document.getElementById('grid');
-            grid.innerHTML = '';
-            for(let i=0; i < config.settings.boardSize; i++) {
-                const cell = document.createElement('div');
-                cell.className = 'cell'; cell.dataset.index = i;
-                if(config.bonuses[i]) {
-                    cell.innerText = config.bonuses[i].t;
-                    cell.classList.add(config.bonuses[i].c);
-                }
-                grid.appendChild(cell);
+        /* Neon Glows - Pulsing from Lexicon */
+        .dl { color: var(--dl); text-shadow: 0 0 10px var(--dl); }
+        .tl { color: var(--tl); text-shadow: 0 0 10px var(--tl); }
+        .dw { color: var(--dw); text-shadow: 0 0 10px var(--dw); }
+        .tw { color: var(--tw); text-shadow: 0 0 10px var(--tw); }
+        .dd { color: var(--dd); box-shadow: inset 0 0 15px var(--dd); text-shadow: 0 0 10px var(--dd); }
+        .s { background: #fff; color: #000; font-size: 22px; width: 90%; height: 90%; display: flex; align-items: center; justify-content: center; border-radius: 2px; }
+
+        .tile { width: 46px; height: 46px; background: #fff; color: #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; position: absolute; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .tile.on-board { width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; }
+        
+        .btn { background: #222; color: #fff; border: none; padding: 14px 24px; border-radius: 30px; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; }
+        .primary { background: #fff; color: #000; padding: 14px 32px; }
+    </style>
+</head>
+<body>
+    <header><div id="total-score" style="font-size: 2.2rem; font-weight: 900; color: var(--gold);">000</div></header>
+    <div class="grid" id="grid"></div>
+    <div class="controls">
+        <button class="btn" onclick="location.reload()">Reset</button>
+        <button id="play-btn" class="btn primary">Play Word</button>
+    </div>
+    <div id="rack" style="height: 100px; width: 100%; position: relative;"></div>
+
+    <script>
+        let layout, board, tiles, theme, bag = [];
+
+        async function init() {
+            try {
+                // FETCH ALL FOLDERS
+                const [l, b, t, th] = await Promise.all([
+                    fetch('lexicon/layout.json').then(r => r.json()),
+                    fetch('lexicon/board.json').then(r => r.json()),
+                    fetch('lexicon/tiles.json').then(r => r.json()),
+                    fetch('lexicon/theme.json').then(r => r.json())
+                ]);
+                
+                layout = l; board = b; tiles = t; theme = th;
+
+                applyTheme();
+                renderBoard();
+                console.log("Lexicon Engine Loaded 🤙🏽");
+            } catch (e) {
+                console.error("Lexicon Load Failed:", e);
             }
         }
 
-        // Logic for Wildcards, Shuffling, and Diagonals stays here but uses config values
-        // ... [The rest of the logic remains optimized as before] ...
-        // [Truncated for brevity, but includes the Snappy Drag and No-Diagonal rules]
-        
-        initGame();
+        function applyTheme() {
+            const root = document.documentElement.style;
+            Object.keys(theme.colors).forEach(key => root.setProperty(`--${key}`, theme.colors[key]));
+            root.setProperty('--cols', board.cols);
+            root.setProperty('--gap', board.gap || '1px');
+            root.setProperty('--blur', theme.effects.blurStrength || '10px');
+        }
+
+        function renderBoard() {
+            const g = document.getElementById('grid');
+            g.innerHTML = '';
+            for(let i=0; i < board.size; i++) {
+                const c = document.createElement('div');
+                c.className = 'cell';
+                if(layout[i]) {
+                    c.innerText = layout[i].t;
+                    c.classList.add(layout[i].c);
+                }
+                g.appendChild(c);
+            }
+        }
+
+        init();
     </script>
 </body>
 </html>

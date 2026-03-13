@@ -6,33 +6,26 @@
     <title>Glyphs: Lexicon Engine</title>
     <style>
     :root { 
-        --bg: #050505; 
-        --grid-line: rgba(255, 255, 255, 0.08); 
-        --gold: #FFFF00;
-        --obsidian: rgba(20, 20, 20, 0.85);
-        --dl: #00FFFF; --tl: #7851A9; --dw: #FF8C00; --tw: #E0115F; --dd: #FFFF00;
+        --bg: #000; --grid-line: rgba(255,255,255,0.1); 
+        --dl: grey; --tl: grey; --dw: grey; --tw: grey; --dd: grey; --gold: gold;
+        --blur: 10px; --gap: 1px;
     }
-    body { background: var(--bg); color: #fff; margin: 0; font-family: sans-serif; height: 100vh; overflow: hidden; }
-
-    /* The Grid Container - Frosted Texture */
     .grid { 
-        display: grid; grid-template-columns: repeat(11, 1fr); 
+        display: grid; 
+        grid-template-columns: repeat(var(--cols, 11), 1fr); 
         width: 92vw; max-width: 400px; aspect-ratio: 1/1; 
-        background: var(--grid-line); gap: 1px; border: 1px solid rgba(255,255,255,0.1);
-        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        background: var(--grid-line); 
+        gap: var(--gap); 
+        border: 1px solid var(--grid-line); 
     }
-
-    /* The Cell - Frosted Glass Look */
     .cell { 
-        background: var(--obsidian);
-        backdrop-filter: blur(8px) saturate(150%);
-        -webkit-backdrop-filter: blur(8px) saturate(150%);
+        background: rgba(20,20,20,0.8); 
+        backdrop-filter: blur(var(--blur)); 
+        -webkit-backdrop-filter: blur(var(--blur));
         display: flex; align-items: center; justify-content: center; 
-        position: relative; width: 100%; height: 100%; font-size: 8px; font-weight: 900;
-        /* Subtle texture overlay */
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-        background-blend-mode: overlay;
-        opacity: 0.95;
+        position: relative; width: 100%; height: 100%; 
+        font-size: 8px; font-weight: 900;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
     }
 </style>
 </head>

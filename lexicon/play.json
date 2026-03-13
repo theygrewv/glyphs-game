@@ -4,14 +4,16 @@
     "minWordLength": 2,
     "requireCenterStart": true,
     "mustConnect": true,
-    "allowCrossWords": true
+    "allowCrossWords": true,
+    "diagonalAllowed": false
   },
   "vectors": {
     "horizontal": {"step": 1, "check": "left-right"},
     "vertical": {"step": 11, "check": "up-down"}
   },
-  "mechanics": {
-    "includeExistingTiles": true,
-    "lockOnPlay": true
+  "feedback": {
+    "invalidIcon": "❌",
+    "validColor": "var(--gold)",
+    "errorColor": "#FF0000"
   }
 }

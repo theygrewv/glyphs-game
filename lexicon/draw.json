@@ -7,7 +7,8 @@
   },
   "layout": {
     "autoCenter": true,
-    "overflow": "contained",
-    "rackWidth": "90vw"
+    "bottomPadding": "60px",
+    "rackWidth": "92vw",
+    "safeZone": true
   }
 }

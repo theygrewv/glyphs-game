@@ -55,10 +55,10 @@
             try {
                 // FETCH ALL FOLDERS
                 const [l, b, t, th] = await Promise.all([
-                    fetch('lexicon/layout.json').then(r => r.json()),
-                    fetch('lexicon/board.json').then(r => r.json()),
-                    fetch('lexicon/tiles.json').then(r => r.json()),
-                    fetch('lexicon/theme.json').then(r => r.json())
+                    fetch('./lexicon/layout.json').then(r => r.json()),
+                    fetch('./lexicon/board.json').then(r => r.json()),
+                    fetch('./lexicon/tiles.json').then(r => r.json()),
+                    fetch('./lexicon/theme.json').then(r => r.json())
                 ]);
                 
                 layout = l; board = b; tiles = t; theme = th;

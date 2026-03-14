@@ -7,7 +7,8 @@
   "mobility": {
     "allowBoardToBoard": true,
     "interactiveOnBoard": true,
-    "zPriority": 1000
+    "preventScroll": true,
+    "dragPriority": "high"
   },
   "constraints": {
     "requireEmpty": true,

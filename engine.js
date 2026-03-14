@@ -197,6 +197,20 @@ function handlePlayWord() {
         totalScore += finalScore;
         document.getElementById('total-score').innerText = totalScore.toString().padStart(3, '0');
         
+        // ⚡ THE PERSISTENT BADGE STAMPER
+        const lastTileEl = getTileAt(full[full.length-1]);
+        if (lastTileEl) {
+            const badge = document.createElement('div');
+            badge.className = 'word-score-badge';
+            badge.innerText = finalScore;
+            
+            // If another word ended here, slide the new badge to the left
+            const existing = lastTileEl.querySelectorAll('.word-score-badge').length;
+            if(existing > 0) badge.style.right = `${-6 + (existing * 22)}px`;
+            
+            lastTileEl.appendChild(badge);
+        }
+
         placedTiles.forEach(p => p.el.classList.add('fixed'));
         placedTiles = [];
         setTimeout(refillRack, 600);
@@ -237,6 +251,7 @@ function setupWildcard() {
         container.appendChild(b);
     });
 }
+
 function applyLexiconTheme() {
     if (!theme || !theme.modes[currentMode] || !board) return;
     const m = theme.modes[currentMode];
@@ -244,9 +259,22 @@ function applyLexiconTheme() {
     Object.keys(m.colors).forEach(k => root.setProperty(`--${k}`, m.colors[k]));
     const style = document.getElementById('lexicon-styles') || document.createElement("style");
     style.id = 'lexicon-styles';
-    style.innerText = `.grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap || '2px'}; border: 1px solid var(--gridLine); } .cell { background: var(--obsidian); backdrop-filter: blur(${m.effects.blur}); -webkit-backdrop-filter: blur(${m.effects.blur}); box-shadow: ${m.effects.bevel}; } .dl { color: var(--dl); box-shadow: inset 0 0 ${m.effects.glow} var(--dl); } .tl { color: var(--tl); box-shadow: inset 0 0 ${m.effects.glow} var(--tl); } .dw { color: var(--dw); box-shadow: inset 0 0 ${m.effects.glow} var(--dw); } .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } #total-score { color: var(--gold); }`;
+    style.innerText = `
+    .grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap || '2px'}; border: 1px solid var(--gridLine); } 
+    .cell { background: var(--obsidian); backdrop-filter: blur(${m.effects.blur}); -webkit-backdrop-filter: blur(${m.effects.blur}); box-shadow: ${m.effects.bevel}; position: relative; } 
+    .dl { color: var(--dl); box-shadow: inset 0 0 ${m.effects.glow} var(--dl); } 
+    .tl { color: var(--tl); box-shadow: inset 0 0 ${m.effects.glow} var(--tl); } 
+    .dw { color: var(--dw); box-shadow: inset 0 0 ${m.effects.glow} var(--dw); } 
+    .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } 
+    .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } 
+    #total-score { color: var(--gold); } 
+    
+    /* ⚡ THE NEW SCORE BADGE STYLING */
+    .word-score-badge { position: absolute; bottom: -6px; right: -6px; background: var(--gold); color: #000; font-size: 0.55rem; font-weight: 900; padding: 2px 4px; border-radius: 4px; z-index: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none; border: 1px solid #000; }
+    `;
     document.head.appendChild(style);
 }
+
 function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = ''; if(!board) return; for(let i=0; i<board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout && layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
 function buildUI() { if(!ui) return; const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; if(btn.action === 'shuffleRack') b.onclick = shuffleRack; if(btn.action === 'recallTiles') b.onclick = recallTiles; if(btn.action === 'toggleTheme') b.onclick = () => { currentMode = currentMode === 'dark' ? 'light' : 'dark'; applyLexiconTheme(); }; if(btn.action === 'playWord') b.onclick = handlePlayWord; ctrl.appendChild(b); }); }
 function initBag() { if(!tiles) return; tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }

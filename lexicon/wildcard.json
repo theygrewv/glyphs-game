@@ -1,0 +1,13 @@
+{
+  "options": "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  "mechanics": {
+    "triggerOnDrop": true,
+    "pointValue": 0,
+    "allowReSelection": true
+  },
+  "ui": {
+    "title": "Select Glyph",
+    "columns": 6,
+    "animation": "slide-down"
+  }
+}

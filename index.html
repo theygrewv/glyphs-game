@@ -7,13 +7,24 @@
     <style id="dynamic-styles">
         :root { --bg: #000; --text: #fff; }
         body { background: var(--bg); color: var(--text); margin: 0; font-family: sans-serif; height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 10px 0; -webkit-user-select: none; }
+        
         .grid { display: grid; width: 92vw; max-width: 400px; aspect-ratio: 1/1; z-index: 5; position: relative; }
+        /* Cells are background; they shouldn't steal touches from tiles */
         .cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; }
+        
         #rack { display: flex; justify-content: center; align-items: center; gap: 8px; width: 92vw; max-width: 400px; height: 80px; margin-bottom: 75px; z-index: 10; }
-        .tile { width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; }
+        
+        .tile { 
+            width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; 
+            display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; 
+            pointer-events: auto !important; z-index: 100;
+        }
+        
         .tile.dragging { position: fixed !important; z-index: 5000; pointer-events: none; transform: scale(1.3); opacity: 0.95; }
-        .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; }
-        .tile.fixed { filter: brightness(0.8); pointer-events: none; }
+        .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; z-index: 200; }
+        .tile.fixed { filter: brightness(0.8); pointer-events: none !important; }
+        
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; opacity: 0.6; }
         .btn { background: #222; color: #fff; border: none; padding: 12px 18px; border-radius: 30px; font-weight: 900; font-size: 0.7rem; text-transform: uppercase; }
         .primary { background: #fff; color: #000; }
@@ -26,7 +37,7 @@
     <div id="rack"></div>
 
     <script>
-        let layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring, shuffleRules;
+        let layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring;
         let dictionary = new Set(), bag = [], placedTiles = [], totalScore = 0, currentMode = 'dark';
 
         async function startEngine() {
@@ -40,10 +51,9 @@
                     fetch('./lexicon/rules.json').then(r => r.json()),
                     fetch('./lexicon/play.json').then(r => r.json()),
                     fetch('./lexicon/draw.json').then(r => r.json()),
-                    fetch('./lexicon/scoring.json').then(r => r.json()),
-                    fetch('./lexicon/shuffle.json').then(r => r.json())
+                    fetch('./lexicon/scoring.json').then(r => r.json())
                 ]);
-                [layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring, shuffleRules] = res;
+                [layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring] = res;
                 currentMode = theme.active || 'dark';
                 const dText = await fetch(playRules.validation.dictionaryUrl).then(r => r.text());
                 dictionary = new Set(dText.toUpperCase().split('\n'));
@@ -55,43 +65,46 @@
             let ox, oy, gRect;
             const start = (e) => {
                 if(el.classList.contains('fixed')) return;
-                const t = e.touches ? e.touches[0] : e;
+                
+                // CRITICAL: Ensure we get coordinates regardless of nested structure
+                const touch = e.touches ? e.touches[0] : e;
                 const r = el.getBoundingClientRect();
-                ox = t.clientX - r.left; oy = t.clientY - r.top;
+                ox = touch.clientX - r.left; oy = touch.clientY - r.top;
+                
                 gRect = document.getElementById('grid').getBoundingClientRect();
 
-                // Mobility Logic: If tile is on board, lift it and clear the cell
+                // If picking up from board
                 if(el.parentElement.classList.contains('cell')) {
                     placedTiles = placedTiles.filter(p => p.el !== el);
                     el.classList.remove('on-board');
-                    // Reset to rack size while dragging
+                    // Reset sizing for dragging
                     el.style.width = '44px'; el.style.height = '44px';
                 }
                 
                 el.classList.add('dragging');
                 if(e.cancelable) e.preventDefault();
+                e.stopPropagation(); // Stop the Grid from seeing this touch
             };
 
             const move = (e) => {
                 if(!el.classList.contains('dragging')) return;
-                const t = e.touches ? e.touches[0] : e;
-                el.style.left = `${t.clientX - ox}px`;
-                el.style.top = `${t.clientY - oy}px`;
+                const touch = e.touches ? e.touches[0] : e;
+                el.style.left = `${touch.clientX - ox}px`;
+                el.style.top = `${touch.clientY - oy}px`;
             };
 
             const end = (e) => {
                 if(!el.classList.contains('dragging')) return;
                 el.classList.remove('dragging');
                 
-                const t = e.changedTouches ? e.changedTouches[0] : e;
-                const cx = t.clientX; const cy = t.clientY;
+                const touch = e.changedTouches ? e.changedTouches[0] : e;
                 const slop = rules.placement.hitSlop || 30;
 
-                if (cx >= (gRect.left - slop) && cx <= (gRect.right + slop) &&
-                    cy >= (gRect.top - slop) && cy <= (gRect.bottom + slop)) {
+                if (touch.clientX >= (gRect.left - slop) && touch.clientX <= (gRect.right + slop) &&
+                    touch.clientY >= (gRect.top - slop) && touch.clientY <= (gRect.bottom + slop)) {
                     
-                    const col = Math.floor((cx - gRect.left) / (gRect.width / board.cols));
-                    const row = Math.floor((cy - gRect.top) / (gRect.height / (board.size / board.cols)));
+                    const col = Math.floor((touch.clientX - gRect.left) / (gRect.width / board.cols));
+                    const row = Math.floor((touch.clientY - gRect.top) / (gRect.height / (board.size / board.cols)));
                     const idx = (row * board.cols) + col;
                     
                     const target = document.querySelector(`.cell[data-index="${idx}"]`);
@@ -105,7 +118,7 @@
                     }
                 }
                 
-                // Return to Rack
+                // Return to Rack flow
                 document.getElementById('rack').appendChild(el);
                 el.style.width = '44px'; el.style.height = '44px';
                 el.style.left = 'auto'; el.style.top = 'auto'; el.style.position = 'relative';
@@ -116,15 +129,15 @@
             window.addEventListener('touchend', end, { passive: false });
         }
 
-        /* --- THEME, UI, & GRID (REMAIN DATA-DRIVEN) --- */
+        /* --- UI & SCORING --- */
         function applyLexiconTheme() { const m = theme.modes[currentMode]; const root = document.documentElement.style; Object.keys(m.colors).forEach(k => root.setProperty(`--${k}`, m.colors[k])); const style = document.getElementById('lexicon-styles') || document.createElement("style"); style.id = 'lexicon-styles'; style.innerText = `.grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap}; border: 1px solid var(--gridLine); } .cell { background: var(--obsidian); backdrop-filter: blur(${m.effects.blur}); -webkit-backdrop-filter: blur(${m.effects.blur}); box-shadow: ${m.effects.bevel}; } .dl { color: var(--dl); box-shadow: inset 0 0 ${m.effects.glow} var(--dl); } .tl { color: var(--tl); box-shadow: inset 0 0 ${m.effects.glow} var(--tl); } .dw { color: var(--dw); box-shadow: inset 0 0 ${m.effects.glow} var(--dw); } .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } #total-score { color: var(--gold); }`; document.head.appendChild(style); }
         function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = ''; for(let i=0; i<board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
         function buildUI() { const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; if(btn.action === 'toggleTheme') b.onclick = () => { currentMode = currentMode === 'dark' ? 'light' : 'dark'; applyLexiconTheme(); }; if(btn.action === 'recall') b.onclick = () => location.reload(); if(btn.action === 'play') b.onclick = handlePlayWord; ctrl.appendChild(b); }); }
         function initBag() { tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }
         function refillRack() { const r = document.getElementById('rack'); const cur = r.querySelectorAll('.tile').length; for(let i=0; i<(7-cur) && bag.length; i++) { const data = bag.pop(); const t = document.createElement('div'); t.className = 'tile'; t.innerHTML = `<span>${data.l}</span><span class="val">${data.v}</span>`; t.dataset.letter = data.l; t.dataset.value = data.v; r.appendChild(t); makeDraggable(t); } }
         function buildHeader() { document.getElementById('game-header').innerHTML = `<div id="total-score" style="font-size: 2.2rem; font-weight: 900; color:var(--gold)">000</div>`; }
-        function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
         function handlePlayWord() { if(!placedTiles.length) return; placedTiles.sort((a,b)=>a.index-b.index); const isH = Math.floor(placedTiles[0].index/board.cols) === Math.floor(placedTiles[placedTiles.length-1].index/board.cols); const step = isH ? 1 : board.cols; let full = [], curr = placedTiles[0].index; while(curr >= 0 && getTileAt(curr-step)) curr -= step; while(curr < board.size && getTileAt(curr)) { full.push(curr); curr += step; } const word = full.map(idx => getTileAt(idx).dataset.letter).join(''); if(dictionary.has(word)) { placedTiles.forEach(p => p.el.classList.add('fixed')); placedTiles = []; refillRack(); } }
+        function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
         startEngine();
     </script>
 </body>

@@ -17,12 +17,22 @@
             display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; 
             pointer-events: auto !important; touch-action: none; z-index: 100; transform-origin: center; 
-            /* 🚫 CSS TRANSFORM TRANSITION REMOVED TO ALLOW INSTANT JS SNAPPING */
             transition: box-shadow 0.15s, filter 0.15s;
         }
         
-        .tile.dragging { position: fixed !important; z-index: 1000000 !important; pointer-events: none; opacity: 0.98; box-shadow: 0 15px 25px rgba(0,0,0,0.6); }
-        .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; z-index: 500 !important; box-shadow: none; font-size: 18px; }
+        /* ⚡ THE FIX: Force absolute 0,0 origin so math is flawless */
+        .tile.dragging { 
+            position: fixed !important; 
+            left: 0 !important; 
+            top: 0 !important; 
+            margin: 0 !important; 
+            z-index: 1000000 !important; 
+            pointer-events: none; 
+            opacity: 0.98; 
+            box-shadow: 0 15px 25px rgba(0,0,0,0.6); 
+        }
+        
+        .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; margin: 0 !important; z-index: 500 !important; box-shadow: none; font-size: 18px; }
         .tile.fixed { filter: brightness(0.85); pointer-events: none !important; }
         .tile.wild { color: var(--gold); }
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; opacity: 0.7; }
@@ -93,7 +103,7 @@
                 if(el.classList.contains('fixed')) return;
                 const t = e.touches ? e.touches[0] : e;
                 
-                // Absolute exact center of a standard 44px tile
+                // Snap directly to the center of the 44px tile
                 ox = 22; oy = 22; 
                 gRect = document.getElementById('grid').getBoundingClientRect();
 
@@ -102,20 +112,25 @@
                     el.classList.remove('on-board'); 
                 }
                 
-                // Force size reset
-                el.style.width = '44px'; el.style.height = '44px';
                 activeTile = el; 
-                document.body.appendChild(el);
                 
-                // ⚡ JUMP DIRECTLY TO FINGER COORDINATES
+                // ⚡ Force strict styling reset to kill ghost offsets
+                el.style.width = '44px'; 
+                el.style.height = '44px';
+                el.style.margin = '0px';
+                el.style.left = '0px';
+                el.style.top = '0px';
+                
+                document.body.appendChild(el);
+                el.classList.add('dragging');
+                
+                // Set coordinates
                 currentX = t.clientX - ox; 
                 currentY = t.clientY - oy;
                 targetX = currentX; 
                 targetY = currentY;
                 
-                el.classList.add('dragging');
-                
-                // ⚡ FORCE IMMEDIATE GPU RENDER SO THERE IS ZERO DELAY
+                // ⚡ Force instant GPU render
                 el.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) scale(${rules?.visuals?.dragScale || 1.25})`;
 
                 if(e.cancelable) e.preventDefault(); 
@@ -153,6 +168,7 @@
                     if (target && !target.querySelector('.tile')) {
                         target.appendChild(el); el.classList.add('on-board');
                         el.style.width = '100%'; el.style.height = '100%';
+                        el.style.margin = '0';
                         el.style.left = '0'; el.style.top = '0'; el.style.position = 'absolute';
                         el.style.transform = 'none'; 
                         placedTiles.push({el, index: idx});
@@ -167,6 +183,7 @@
                 
                 document.getElementById('rack').appendChild(el); 
                 el.style.width = '44px'; el.style.height = '44px';
+                el.style.margin = '0';
                 el.style.left = 'auto'; el.style.top = 'auto'; el.style.position = 'relative'; 
                 el.style.transform = 'none';
             };
@@ -273,7 +290,7 @@
         function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
         
         function shuffleRack() { const rack = document.getElementById('rack'); const t = Array.from(rack.querySelectorAll('.tile')); t.sort(() => Math.random() - 0.5); t.forEach(tile => { tile.style.transform = 'scale(0.8)'; rack.appendChild(tile); setTimeout(() => tile.style.transform = 'none', 50); }); }
-        function recallTiles() { const rack = document.getElementById('rack'); placedTiles.forEach(p => { p.el.classList.remove('on-board'); p.el.style.width = '44px'; p.el.style.height = '44px'; p.el.style.left = 'auto'; p.el.style.top = 'auto'; p.el.style.position = 'relative'; p.el.style.transform = 'none'; rack.appendChild(p.el); }); placedTiles = []; }
+        function recallTiles() { const rack = document.getElementById('rack'); placedTiles.forEach(p => { p.el.classList.remove('on-board'); p.el.style.width = '44px'; p.el.style.height = '44px'; p.el.style.margin = '0'; p.el.style.left = 'auto'; p.el.style.top = 'auto'; p.el.style.position = 'relative'; p.el.style.transform = 'none'; rack.appendChild(p.el); }); placedTiles = []; }
         
         startEngine();
     </script>

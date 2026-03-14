@@ -6,34 +6,25 @@
     <title>Glyphs: Lexicon Engine</title>
     <style id="dynamic-styles">
         :root { --bg: #000; --text: #fff; }
-        /* CRITICAL: touch-action: none prevents the browser from hijacking the drag */
-        body { 
-            background: var(--bg); color: var(--text); margin: 0; font-family: sans-serif; 
-            height: 100dvh; display: flex; flex-direction: column; 
-            align-items: center; justify-content: space-between; 
-            overflow: hidden; touch-action: none; padding: 10px 0; -webkit-user-select: none; 
-        }
-        
+        body { background: var(--bg); color: var(--text); margin: 0; font-family: sans-serif; height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 10px 0; -webkit-user-select: none; }
         .grid { display: grid; width: 92vw; max-width: 400px; aspect-ratio: 1/1; z-index: 5; position: relative; }
-        .cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; }
+        .cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; transition: background 0.2s, transform 0.15s ease-out; }
+        /* Cell Magnification on Hover */
+        .cell.hover { background: rgba(255, 255, 255, 0.18) !important; box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.35); transform: scale(1.05); }
         
-        #rack { 
-            display: flex; justify-content: center; align-items: center; 
-            gap: 10px; width: 92vw; max-width: 400px; height: 80px; 
-            margin-bottom: 75px; z-index: 10; touch-action: none;
-        }
+        #rack { display: flex; justify-content: center; align-items: center; gap: 8px; width: 92vw; max-width: 400px; height: 80px; margin-bottom: 75px; z-index: 10; touch-action: none; }
         
         .tile { 
             width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; 
             display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; 
-            pointer-events: auto !important; z-index: 100; touch-action: none;
+            transition: transform 0.15s ease-out; /* Smooth pop animation */
         }
         
-        .tile.dragging { position: fixed !important; z-index: 5000; pointer-events: none; transform: scale(1.25); opacity: 0.95; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        /* Dragging & Hover Magnification */
+        .tile.dragging { position: fixed !important; z-index: 5000; pointer-events: none; opacity: 0.95; box-shadow: 0 12px 24px rgba(0,0,0,0.55); }
         .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; z-index: 200; }
         .tile.fixed { filter: brightness(0.8); pointer-events: none !important; }
-        
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; opacity: 0.6; }
         .btn { background: #222; color: #fff; border: none; padding: 12px 18px; border-radius: 30px; font-weight: 900; font-size: 0.7rem; text-transform: uppercase; }
         .primary { background: #fff; color: #000; }
@@ -46,7 +37,7 @@
     <div id="rack"></div>
 
     <script>
-        let layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring;
+        let layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring, shuffleRules;
         let dictionary = new Set(), bag = [], placedTiles = [], totalScore = 0, currentMode = 'dark';
 
         async function startEngine() {
@@ -60,30 +51,31 @@
                     fetch('./lexicon/rules.json').then(r => r.json()),
                     fetch('./lexicon/play.json').then(r => r.json()),
                     fetch('./lexicon/draw.json').then(r => r.json()),
-                    fetch('./lexicon/scoring.json').then(r => r.json())
+                    fetch('./lexicon/scoring.json').then(r => r.json()),
+                    fetch('./lexicon/shuffle.json').then(r => r.json())
                 ]);
-                [layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring] = res;
+                [layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring, shuffleRules] = res;
                 currentMode = theme.active || 'dark';
                 const dText = await fetch(playRules.validation.dictionaryUrl).then(r => r.text());
                 dictionary = new Set(dText.toUpperCase().split('\n'));
                 applyLexiconTheme(); buildHeader(); buildGrid(); buildUI(); initBag(); refillRack();
-                console.log("Total Touch Lockdown Engaged 🔒");
+                console.log("Precision Pop Engine Online 🤙🏽");
             } catch (e) { console.error(e); }
         }
 
         function makeDraggable(el) {
-            let ox, oy, gRect;
+            let ox, oy, gridRect;
+            const dragScale = visuals?.dragScale || 1.25;
+            const hoverScale = visuals?.hoverScale || 1.4;
 
             const start = (e) => {
                 if(el.classList.contains('fixed')) return;
                 const touch = e.touches ? e.touches[0] : e;
                 const r = el.getBoundingClientRect();
                 
-                // Grab offset: where on the tile did you click?
-                ox = touch.clientX - r.left; 
-                oy = touch.clientY - r.top;
-                
-                gRect = document.getElementById('grid').getBoundingClientRect();
+                // CRITICAL: Page coordinates for absolute positioning
+                ox = touch.pageX - (r.left + window.pageXOffset); 
+                oy = touch.pageY - (r.top + window.pageYOffset);
 
                 if(el.parentElement.classList.contains('cell')) {
                     placedTiles = placedTiles.filter(p => p.el !== el);
@@ -92,9 +84,8 @@
                 }
                 
                 el.classList.add('dragging');
-                el.style.left = `${touch.clientX - ox}px`;
-                el.style.top = `${touch.clientY - oy}px`;
-
+                el.style.transform = `scale(${dragScale})`; // Start drag scale
+                
                 if(e.cancelable) e.preventDefault();
             };
 
@@ -102,35 +93,53 @@
                 if(!el.classList.contains('dragging')) return;
                 const touch = e.touches ? e.touches[0] : e;
                 
-                // Follow the finger exactly
-                el.style.left = `${touch.clientX - ox}px`;
-                el.style.top = `${touch.clientY - oy}px`;
+                // Position tile directly under finger using page coordinates
+                el.style.left = `${touch.pageX - ox}px`;
+                el.style.top = `${touch.pageY - oy}px`;
+
+                // Hover Feedback & Pop Logic
+                document.querySelectorAll('.cell.hover').forEach(c => c.classList.remove('hover'));
+                let currentHoverCellIdx = null;
+                // Re-measure grid for move if needed, or just end. Let's do end only for drop. Start is enough for move.
+                // Wait, if board scrolls, this gridRect is wrong during move. Let's recalibrate gridRect here.
+                gridRect = document.getElementById('grid').getBoundingClientRect();
+                const targetIdx = calculateGridIndex(touch.pageX, touch.pageY, gridRect);
                 
-                if(e.cancelable) e.preventDefault();
+                if(targetIdx !== null) {
+                    const targetCell = document.querySelector(`.cell[data-index="${targetIdx}"]`);
+                    if(targetCell && !targetCell.querySelector('.tile')) {
+                        targetCell.classList.add('hover'); // Magnify cell
+                        el.style.transform = `scale(${hoverScale})`; // Magnify tile for "pop"
+                        currentHoverCellIdx = targetIdx;
+                    } else {
+                        el.style.transform = `scale(${dragScale})`; // Normal drag scale
+                    }
+                } else {
+                    el.style.transform = `scale(${dragScale})`; // Normal drag scale
+                }
             };
 
             const end = (e) => {
                 if(!el.classList.contains('dragging')) return;
                 el.classList.remove('dragging');
+                document.querySelectorAll('.cell.hover').forEach(c => c.classList.remove('hover'));
+                el.style.transform = 'scale(1)'; // Reset tile scale
                 
                 const touch = e.changedTouches ? e.changedTouches[0] : e;
-                const slop = rules.placement.hitSlop || 30;
+                const slop = rules.placement.hitSlop || 35;
 
-                // Check Grid Placement
-                if (touch.clientX >= (gRect.left - slop) && touch.clientX <= (gRect.right + slop) &&
-                    touch.clientY >= (gRect.top - slop) && touch.clientY <= (gRect.bottom + slop)) {
-                    
-                    const col = Math.floor((touch.clientX - gRect.left) / (gRect.width / board.cols));
-                    const row = Math.floor((touch.clientY - gRect.top) / (gRect.height / (board.size / board.cols)));
-                    const idx = (row * board.cols) + col;
-                    
-                    const target = document.querySelector(`.cell[data-index="${idx}"]`);
+                // RECAlIBRATE grid exactly on drop
+                gridRect = document.getElementById('grid').getBoundingClientRect();
+                const targetIdx = calculateGridIndex(touch.pageX, touch.pageY, gridRect);
+
+                if (targetIdx !== null) {
+                    const target = document.querySelector(`.cell[data-index="${targetIdx}"]`);
                     if (target && !target.querySelector('.tile')) {
                         target.appendChild(el);
                         el.classList.add('on-board');
                         el.style.width = '100%'; el.style.height = '100%';
                         el.style.left = '0'; el.style.top = '0'; el.style.position = 'absolute';
-                        placedTiles.push({el, index: idx});
+                        placedTiles.push({el, index: targetIdx});
                         return;
                     }
                 }
@@ -141,21 +150,34 @@
                 el.style.left = 'auto'; el.style.top = 'auto'; el.style.position = 'relative';
             };
 
-            // CRITICAL: passive: false is required to prevent "snapping back"
+            function calculateGridIndex(pageX, pageY, g) {
+                const slop = rules.placement.hitSlop || 35;
+                const x = pageX - window.pageXOffset;
+                const y = pageY - window.pageYOffset;
+                if (x >= (g.left - slop) && x <= (g.right + slop) &&
+                    y >= (g.top - slop) && y <= (g.bottom + slop)) {
+                    const col = Math.floor((x - g.left) / (g.width / board.cols));
+                    const row = Math.floor((y - g.top) / (g.height / (board.size / board.cols)));
+                    const idx = (row * board.cols) + col;
+                    return (idx >= 0 && idx < board.size) ? idx : null;
+                }
+                return null;
+            }
+
             el.addEventListener('touchstart', start, { passive: false });
             window.addEventListener('touchmove', move, { passive: false });
             window.addEventListener('touchend', end, { passive: false });
         }
 
-        /* --- THEME, UI, & GRID (DATA-DRIVEN) --- */
+        /* --- THEME, UI, GRID --- */
         function applyLexiconTheme() { const m = theme.modes[currentMode]; const root = document.documentElement.style; Object.keys(m.colors).forEach(k => root.setProperty(`--${k}`, m.colors[k])); const style = document.getElementById('lexicon-styles') || document.createElement("style"); style.id = 'lexicon-styles'; style.innerText = `.grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap}; border: 1px solid var(--gridLine); } .cell { background: var(--obsidian); backdrop-filter: blur(${m.effects.blur}); -webkit-backdrop-filter: blur(${m.effects.blur}); box-shadow: ${m.effects.bevel}; } .dl { color: var(--dl); box-shadow: inset 0 0 ${m.effects.glow} var(--dl); } .tl { color: var(--tl); box-shadow: inset 0 0 ${m.effects.glow} var(--tl); } .dw { color: var(--dw); box-shadow: inset 0 0 ${m.effects.glow} var(--dw); } .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } #total-score { color: var(--gold); }`; document.head.appendChild(style); }
         function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = ''; for(let i=0; i<board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
         function buildUI() { const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; if(btn.action === 'toggleTheme') b.onclick = () => { currentMode = currentMode === 'dark' ? 'light' : 'dark'; applyLexiconTheme(); }; if(btn.action === 'recall') b.onclick = () => location.reload(); if(btn.action === 'play') b.onclick = handlePlayWord; ctrl.appendChild(b); }); }
         function initBag() { tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }
         function refillRack() { const r = document.getElementById('rack'); const cur = r.querySelectorAll('.tile').length; for(let i=0; i<(7-cur) && bag.length; i++) { const data = bag.pop(); const t = document.createElement('div'); t.className = 'tile'; t.innerHTML = `<span>${data.l}</span><span class="val">${data.v}</span>`; t.dataset.letter = data.l; t.dataset.value = data.v; r.appendChild(t); makeDraggable(t); } }
         function buildHeader() { document.getElementById('game-header').innerHTML = `<div id="total-score" style="font-size: 2.2rem; font-weight: 900; color:var(--gold)">000</div>`; }
-        function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
         function handlePlayWord() { if(!placedTiles.length) return; placedTiles.sort((a,b)=>a.index-b.index); const isH = Math.floor(placedTiles[0].index/board.cols) === Math.floor(placedTiles[placedTiles.length-1].index/board.cols); const step = isH ? 1 : board.cols; let full = [], curr = placedTiles[0].index; while(curr >= 0 && getTileAt(curr-step)) curr -= step; while(curr < board.size && getTileAt(curr)) { full.push(curr); curr += step; } const word = full.map(idx => getTileAt(idx).dataset.letter).join(''); if(dictionary.has(word)) { placedTiles.forEach(p => p.el.classList.add('fixed')); placedTiles = []; refillRack(); } }
+        function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
         startEngine();
     </script>
 </body>

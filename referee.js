@@ -1,56 +1,38 @@
-/* ⚖️ ENGINE v1 - REFEREE MODULE */
-
+/* ⚖️ REFEREE MODULE - FIXED SYNC */
 function validatePlacement() {
-    // 1. Check if any tiles were actually moved
     if (!placedTiles || placedTiles.length === 0) return false;
 
-    // 2. Get the indices of the tiles currently being played
-    const indices = placedTiles.map(p => parseInt(p.index));
+    // Get indices and sort them to check continuity
+    const indices = placedTiles.map(p => parseInt(p.index)).sort((a, b) => a - b);
     
-    // 3. Simple Alignment Check: Are they all in the same row or same column?
-    const r0 = Math.floor(indices[0] / board.cols);
-    const c0 = indices[0] % board.cols;
+    const cols = board.cols;
+    const r0 = Math.floor(indices[0] / cols);
+    const c0 = indices[0] % cols;
     
-    const sameRow = indices.every(idx => Math.floor(idx / board.cols) === r0);
-    const sameCol = indices.every(idx => idx % board.cols === c0);
+    const sameRow = indices.every(idx => Math.floor(idx / cols) === r0);
+    const sameCol = indices.every(idx => idx % cols === c0);
 
-    if (!sameRow && !sameCol) {
-        console.log("Referee: Tiles not aligned in row or column");
-        return false;
+    if (!sameRow && !sameCol) return false;
+
+    // Check for gaps between placed tiles
+    const step = sameRow ? 1 : cols;
+    for (let i = indices[0]; i <= indices[indices.length - 1]; i += step) {
+        const cell = document.querySelector(`.cell[data-index="${i}"]`);
+        if (!cell.querySelector('.tile')) return false; 
     }
 
-    // 4. First Move Check: Does one tile hit the center? (Index 112 for 15x15)
     const hasFixed = document.querySelector('.tile.fixed');
     if (!hasFixed) {
-        const centerIndex = 112; 
-        const hitsCenter = indices.includes(centerIndex);
-        if (!hitsCenter) {
-            console.log("Referee: First move must touch the center star!");
-            return false;
-        }
-        return true; // First move is valid if aligned and on center
+        const centerIndex = Math.floor(board.size / 2); 
+        return indices.includes(centerIndex);
     }
 
-    // 5. Connection Check: Is it touching an existing (fixed) tile?
-    const isTouching = indices.some(idx => {
-        const neighbors = [idx-1, idx+1, idx-board.cols, idx+board.cols];
+    // Connection check
+    return indices.some(idx => {
+        const neighbors = [idx-1, idx+1, idx-cols, idx+cols];
         return neighbors.some(n => {
-            const neighborTile = document.querySelector(`.cell[data-index="${n}"] .tile.fixed`);
-            return neighborTile !== null;
+            const nb = document.querySelector(`.cell[data-index="${n}"] .tile.fixed`);
+            return nb !== null;
         });
     });
-
-    if (!isTouching) {
-        console.log("Referee: Word must connect to existing tiles");
-        return false;
-    }
-
-    return true;
-}
-
-function checkWordInDictionary(word) {
-    const cleanWord = word.trim().toUpperCase();
-    if (cleanWord.length < 2) return { valid: false, msg: "TOO SHORT" };
-    if (dictionary.has(cleanWord)) return { valid: true, msg: "VALID" };
-    return { valid: false, msg: "NOT FOUND" };
 }

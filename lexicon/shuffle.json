@@ -1,0 +1,11 @@
+{
+  "mechanics": {
+    "type": "random-swap",
+    "animation": "pop-and-sink",
+    "durationMs": 300
+  },
+  "constraints": {
+    "onlyOnRack": true,
+    "preventDuringDrag": true
+  }
+}

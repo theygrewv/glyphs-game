@@ -2,6 +2,15 @@ let layout, board, tiles, theme, ui, rules, playRules, scoring, wildLex, physics
 let dictionary = new Set(), bag = [], placedTiles = [], totalScore = 0, currentMode = 'dark';
 let activeTile = null, targetX = 0, targetY = 0, currentX = 0, currentY = 0, wildTarget = null;
 
+// ⚡ ROUTING AND SAVE ID LOGIC
+const urlParams = new URLSearchParams(window.location.search);
+let gameId = urlParams.get('id') || `game_${Date.now()}`;
+
+if (gameId === 'new') {
+    gameId = `game_${Date.now()}`;
+    window.history.replaceState(null, '', `game.html?id=${gameId}`);
+}
+
 async function startEngine() {
     try {
         const fetchJson = (url) => fetch(url).then(r => r.ok ? r.json() : null);
@@ -20,9 +29,64 @@ async function startEngine() {
             dictionary = new Set(dText.toUpperCase().match(/[A-Z]+/g));
         }
         
-        applyLexiconTheme(); buildHeader(); buildGrid(); buildUI(); initBag(); refillRack(); setupWildcard();
+        applyLexiconTheme(); buildHeader(); buildGrid(); buildUI(); setupWildcard();
+        
+        // ⚡ LOAD OR INITIALIZE
+        if (!loadGameState()) {
+            initBag(); refillRack();
+        }
+        
         requestAnimationFrame(updateMotion);
     } catch (e) { console.error("Engine Error:", e); }
+}
+
+/* ⚡ GAME STATE PERSISTENCE */
+function saveGameState() {
+    const state = { score: totalScore, bag: bag, board: [], rack: [] };
+    document.querySelectorAll('.tile.fixed').forEach(t => {
+        state.board.push({ index: parseInt(t.parentElement.dataset.index), l: t.dataset.letter, v: t.dataset.value, raw: t.dataset.raw });
+    });
+    document.querySelectorAll('#rack .tile').forEach(t => {
+        state.rack.push({ l: t.dataset.letter, v: t.dataset.value, raw: t.dataset.raw });
+    });
+    localStorage.setItem(`glyphs_save_${gameId}`, JSON.stringify(state));
+}
+
+function loadGameState() {
+    const saved = localStorage.getItem(`glyphs_save_${gameId}`);
+    if (saved) {
+        const state = JSON.parse(saved);
+        totalScore = state.score;
+        document.getElementById('total-score').innerText = totalScore.toString().padStart(3, '0');
+        bag = state.bag;
+
+        state.board.forEach(item => {
+            const targetCell = document.querySelector(`.cell[data-index="${item.index}"]`);
+            if(targetCell) {
+                const t = document.createElement('div');
+                t.className = 'tile fixed on-board';
+                const displayVal = item.raw === '?' ? '?' : item.v;
+                t.innerHTML = `<span>${item.l}</span><span class="val">${displayVal}</span>`;
+                t.dataset.letter = item.l; t.dataset.raw = item.raw; t.dataset.value = item.v;
+                targetCell.appendChild(t);
+            }
+        });
+
+        const r = document.getElementById('rack');
+        state.rack.forEach(item => {
+            const t = document.createElement('div');
+            t.className = 'tile';
+            const displayVal = item.raw === '?' ? '?' : item.v;
+            t.innerHTML = `<span>${item.l}</span><span class="val">${displayVal}</span>`;
+            t.dataset.letter = item.l; t.dataset.raw = item.raw; t.dataset.value = item.v;
+            r.appendChild(t);
+            makeDraggable(t);
+        });
+
+        updateClusterOutlines();
+        return true; // Successfully loaded
+    }
+    return false; // No save found
 }
 
 function updateMotion() {
@@ -44,24 +108,19 @@ function makeDraggable(el) {
         const t = e.touches ? e.touches[0] : e;
         ox = physics.tile.centerOffset; oy = physics.tile.centerOffset; 
         gRect = document.getElementById('grid').getBoundingClientRect();
-
         if(el.parentElement.classList.contains('cell')) {
             placedTiles = placedTiles.filter(p => p.el !== el);
             el.classList.remove('on-board'); 
             updateLiveScore();
         }
-        
         activeTile = el; 
         el.style.width = `${physics.tile.size}px`; el.style.height = `${physics.tile.size}px`;
         el.style.position = 'absolute'; el.style.margin = '0px'; el.style.left = '0px'; el.style.top = '0px';
-        
         dragLayer.appendChild(el);
         el.classList.add('dragging');
-        
         currentX = t.clientX - ox; currentY = t.clientY - oy;
         targetX = currentX; targetY = currentY;
         el.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) scale(${physics.motion.dragScale})`;
-
         if(e.cancelable) e.preventDefault(); e.stopPropagation();
     };
 
@@ -69,7 +128,6 @@ function makeDraggable(el) {
         if(!activeTile || activeTile !== el || !physics) return;
         const t = e.touches ? e.touches[0] : e;
         targetX = t.clientX - ox; targetY = t.clientY - oy;
-        
         document.querySelectorAll('.cell.hover').forEach(c => c.classList.remove('hover'));
         const col = Math.floor((t.clientX - gRect.left) / (gRect.width / board.cols));
         const row = Math.floor((t.clientY - gRect.top) / (gRect.height / (board.size / board.cols)));
@@ -85,22 +143,18 @@ function makeDraggable(el) {
         el.classList.remove('dragging'); activeTile = null;
         const t = e.changedTouches ? e.changedTouches[0] : e;
         const slop = physics.bounds.hitSlop;
-
         if (t.clientX >= (gRect.left - slop) && t.clientX <= (gRect.right + slop) && t.clientY >= (gRect.top - slop) && t.clientY <= (gRect.bottom + slop)) {
             const col = Math.floor((t.clientX - gRect.left) / (gRect.width / board.cols));
             const row = Math.floor((t.clientY - gRect.top) / (gRect.height / (board.size / board.cols)));
             const idx = (row * board.cols) + col;
             const target = document.querySelector(`.cell[data-index="${idx}"]`);
-            
             if (target && !target.querySelector('.tile')) {
                 target.appendChild(el); el.classList.add('on-board');
                 el.style.width = '100%'; el.style.height = '100%';
                 el.style.position = 'absolute'; el.style.left = '0'; el.style.top = '0';
                 el.style.transform = 'none'; 
                 placedTiles.push({el, index: idx});
-                
                 updateLiveScore();
-                
                 if (el.dataset.raw === '?') { 
                     wildTarget = el; 
                     document.getElementById('wildcard-modal').style.display = 'flex'; 
@@ -108,7 +162,6 @@ function makeDraggable(el) {
                 return;
             }
         }
-        
         document.getElementById('rack').appendChild(el); 
         el.style.width = `${physics.tile.size}px`; el.style.height = `${physics.tile.size}px`;
         el.style.position = 'relative'; el.style.left = 'auto'; el.style.top = 'auto'; 
@@ -124,56 +177,33 @@ function makeDraggable(el) {
 function updateLiveScore() {
     document.querySelectorAll('.live-score-badge').forEach(e => e.remove());
     if (!placedTiles.length) return;
-    
     placedTiles.sort((a,b)=>a.index-b.index);
-    
     let isH = true;
-    if (placedTiles.length > 1) {
-        isH = (placedTiles[1].index - placedTiles[0].index === 1);
-    } else {
-        const idx = placedTiles[0].index;
-        if (getTileAt(idx - board.cols) || getTileAt(idx + board.cols)) isH = false;
-    }
+    if (placedTiles.length > 1) { isH = (placedTiles[1].index - placedTiles[0].index === 1); } else { const idx = placedTiles[0].index; if (getTileAt(idx - board.cols) || getTileAt(idx + board.cols)) isH = false; }
     const step = isH ? 1 : board.cols;
-    
     let full = [], curr = placedTiles[0].index;
     while(curr >= 0 && getTileAt(curr-step)) curr -= step;
     while(curr < board.size && getTileAt(curr)) { full.push(curr); curr += step; }
-    
     let total = 0, mult = 1;
     full.forEach(idx => {
         const v = parseInt(getTileAt(idx).dataset.value) || 0;
         const isNew = placedTiles.find(p => p.index === idx);
         const bonusType = (isNew && layout[idx]) ? layout[idx].c : null;
         const bonus = (bonusType && scoring?.multipliers) ? scoring.multipliers[bonusType] : null;
-
-        if(bonus && bonus.type === "letter") total += (v * bonus.value);
-        else total += v;
+        if(bonus && bonus.type === "letter") total += (v * bonus.value); else total += v;
         if(bonus && bonus.type === "word") mult *= bonus.value;
     });
-    
     let finalScore = total * mult;
-    if(scoring?.bonuses && placedTiles.length >= scoring.bonuses.bingoThreshold) {
-        finalScore += scoring.bonuses.bingo;
-    }
-
+    if(scoring?.bonuses && placedTiles.length >= scoring.bonuses.bingoThreshold) { finalScore += scoring.bonuses.bingo; }
     const lastWordIdx = full[full.length - 1];
     const lastCellEl = document.querySelector(`.cell[data-index="${lastWordIdx}"]`);
-    
     if (lastCellEl) {
         const rect = lastCellEl.getBoundingClientRect();
         const gRect = document.getElementById('grid').getBoundingClientRect();
         const badge = document.createElement('div');
-        badge.className = 'live-score-badge';
-        badge.innerText = finalScore;
+        badge.className = 'live-score-badge'; badge.innerText = finalScore;
         badge.style.left = `${(rect.left - gRect.left) + rect.width - 12}px`;
-        
-        if (isH) {
-            badge.style.top = `${(rect.top - gRect.top) - 12}px`;
-        } else {
-            badge.style.top = `${(rect.top - gRect.top) + rect.height - 12}px`;
-        }
-        
+        if (isH) { badge.style.top = `${(rect.top - gRect.top) - 12}px`; } else { badge.style.top = `${(rect.top - gRect.top) + rect.height - 12}px`; }
         document.getElementById('grid').appendChild(badge);
     }
 }
@@ -181,22 +211,16 @@ function updateLiveScore() {
 function validatePlacement() {
     if (!placedTiles.length) return false;
     if (!rules || !rules.validation) return true;
-
     const r0 = Math.floor(placedTiles[0].index / board.cols);
     const c0 = placedTiles[0].index % board.cols;
     const sameRow = placedTiles.every(p => Math.floor(p.index / board.cols) === r0);
     const sameCol = placedTiles.every(p => p.index % board.cols === c0);
     if (!sameRow && !sameCol) return false;
-
     placedTiles.sort((a,b) => a.index - b.index);
     const step = sameRow ? 1 : board.cols;
     const minIdx = placedTiles[0].index;
     const maxIdx = placedTiles[placedTiles.length - 1].index;
-
-    for (let i = minIdx; i <= maxIdx; i += step) {
-        if (!getTileAt(i)) return false; 
-    }
-
+    for (let i = minIdx; i <= maxIdx; i += step) { if (!getTileAt(i)) return false; }
     const hasFixed = document.querySelector('.tile.fixed');
     if (!hasFixed) {
         const centerIdx = rules.validation.centerIndex || Math.floor(board.size / 2);
@@ -205,60 +229,35 @@ function validatePlacement() {
         let touchesFixed = false;
         placedTiles.forEach(p => {
             const adj = [p.index - 1, p.index + 1, p.index - board.cols, p.index + board.cols];
-            adj.forEach(a => {
-                const t = getTileAt(a);
-                if (t && t.classList.contains('fixed')) touchesFixed = true;
-            });
+            adj.forEach(a => { const t = getTileAt(a); if (t && t.classList.contains('fixed')) touchesFixed = true; });
         });
         return touchesFixed;
     }
 }
 
-/* ⚡ PERIMETER ADJACENCY ALGORITHM */
 function updateClusterOutlines() {
     document.querySelectorAll('.tile.fixed').forEach(t => {
         const idx = parseInt(t.parentElement.dataset.index);
-        const r = Math.floor(idx / board.cols);
-        const c = idx % board.cols;
-        
-        // Check if there is a fixed tile touching each side
+        const r = Math.floor(idx / board.cols), c = idx % board.cols;
         const hasT = r > 0 && getTileAt(idx - board.cols)?.classList.contains('fixed');
         const hasB = r < (board.size/board.cols - 1) && getTileAt(idx + board.cols)?.classList.contains('fixed');
         const hasL = c > 0 && getTileAt(idx - 1)?.classList.contains('fixed');
         const hasR = c < (board.cols - 1) && getTileAt(idx + 1)?.classList.contains('fixed');
-        
-        // Toggle edge borders
-        t.classList.toggle('edge-t', !hasT);
-        t.classList.toggle('edge-b', !hasB);
-        t.classList.toggle('edge-l', !hasL);
-        t.classList.toggle('edge-r', !hasR);
-        
-        // Dynamically apply corner radii so the outline curves perfectly
-        t.classList.toggle('corner-tl', !hasT && !hasL);
-        t.classList.toggle('corner-tr', !hasT && !hasR);
-        t.classList.toggle('corner-bl', !hasB && !hasL);
-        t.classList.toggle('corner-br', !hasB && !hasR);
+        t.classList.toggle('edge-t', !hasT); t.classList.toggle('edge-b', !hasB);
+        t.classList.toggle('edge-l', !hasL); t.classList.toggle('edge-r', !hasR);
+        t.classList.toggle('corner-tl', !hasT && !hasL); t.classList.toggle('corner-tr', !hasT && !hasR);
+        t.classList.toggle('corner-bl', !hasB && !hasL); t.classList.toggle('corner-br', !hasB && !hasR);
     });
 }
 
 function handlePlayWord() {
     document.querySelectorAll('.feedback-node').forEach(n => n.remove());
     if(!placedTiles.length) return;
-
-    if (!validatePlacement()) {
-        showFeedback(placedTiles[placedTiles.length-1].index, '❌ INVALID', 'feedback-node invalid-x');
-        setTimeout(recallTiles, 1200);
-        return;
-    }
+    if (!validatePlacement()) { showFeedback(placedTiles[placedTiles.length-1].index, '❌ INVALID', 'feedback-node invalid-x'); setTimeout(recallTiles, 1200); return; }
     
     placedTiles.sort((a,b)=>a.index-b.index);
     let isH = true;
-    if (placedTiles.length > 1) {
-        isH = (placedTiles[1].index - placedTiles[0].index === 1);
-    } else {
-        const idx = placedTiles[0].index;
-        if (getTileAt(idx - board.cols) || getTileAt(idx + board.cols)) isH = false;
-    }
+    if (placedTiles.length > 1) { isH = (placedTiles[1].index - placedTiles[0].index === 1); } else { const idx = placedTiles[0].index; if (getTileAt(idx - board.cols) || getTileAt(idx + board.cols)) isH = false; }
     const step = isH ? 1 : board.cols;
     
     let full = [], curr = placedTiles[0].index;
@@ -274,29 +273,22 @@ function handlePlayWord() {
             const isNew = placedTiles.find(p => p.index === idx);
             const bonusType = (isNew && layout[idx]) ? layout[idx].c : null;
             const bonus = (bonusType && scoring?.multipliers) ? scoring.multipliers[bonusType] : null;
-
-            if(bonus && bonus.type === "letter") total += (v * bonus.value);
-            else total += v;
+            if(bonus && bonus.type === "letter") total += (v * bonus.value); else total += v;
             if(bonus && bonus.type === "word") mult *= bonus.value;
         });
-        
         let finalScore = total * mult;
-        if(scoring?.bonuses && placedTiles.length >= scoring.bonuses.bingoThreshold) {
-            finalScore += scoring.bonuses.bingo;
-        }
-
+        if(scoring?.bonuses && placedTiles.length >= scoring.bonuses.bingoThreshold) { finalScore += scoring.bonuses.bingo; }
         showFeedback(full[full.length-1], `+${finalScore}`, 'feedback-node');
         totalScore += finalScore;
         document.getElementById('total-score').innerText = totalScore.toString().padStart(3, '0');
-        
         placedTiles.forEach(p => p.el.classList.add('fixed'));
         placedTiles = [];
         updateLiveScore();
-        
-        // ⚡ RUN THE OUTLINE ALGORITHM AFTER LOCKING THE WORD
         updateClusterOutlines();
-        
-        setTimeout(refillRack, 600);
+        setTimeout(() => {
+            refillRack();
+            saveGameState(); // ⚡ AUTO-SAVE THE GAME STATE HERE
+        }, 600);
     } else {
         showFeedback(full[full.length-1], '❌ NO WORD', 'feedback-node invalid-x');
         setTimeout(recallTiles, 1200);
@@ -325,10 +317,8 @@ function setupWildcard() {
             if(!wildTarget) return;
             const stdTile = tiles.distribution.find(t => t.l === l);
             const letterValue = stdTile ? stdTile.v : 0;
-            wildTarget.dataset.letter = l; 
-            wildTarget.dataset.value = letterValue; 
-            wildTarget.querySelector('span').innerText = l;
-            wildTarget.querySelector('.val').innerText = letterValue;
+            wildTarget.dataset.letter = l; wildTarget.dataset.value = letterValue; 
+            wildTarget.querySelector('span').innerText = l; wildTarget.querySelector('.val').innerText = letterValue;
             wildTarget.classList.add('wild');
             document.getElementById('wildcard-modal').style.display = 'none';
             wildTarget = null;
@@ -345,75 +335,28 @@ function applyLexiconTheme() {
     Object.keys(m.colors).forEach(k => root.setProperty(`--${k}`, m.colors[k]));
     const style = document.getElementById('lexicon-styles') || document.createElement("style");
     style.id = 'lexicon-styles';
-    style.innerText = `
-    .grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap || '2px'}; border: 1px solid var(--gridLine); } 
-    .cell { background: var(--obsidian); backdrop-filter: blur(${m.effects.blur}); -webkit-backdrop-filter: blur(${m.effects.blur}); box-shadow: ${m.effects.bevel}; position: relative; } 
-    .dl { color: var(--dl); box-shadow: inset 0 0 ${m.effects.glow} var(--dl); } 
-    .tl { color: var(--tl); box-shadow: inset 0 0 ${m.effects.glow} var(--tl); } 
-    .dw { color: var(--dw); box-shadow: inset 0 0 ${m.effects.glow} var(--dw); } 
-    .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } 
-    .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } 
-    #total-score { color: var(--gold); } 
-    .live-score-badge { position: absolute; background: var(--dl); color: #000; font-size: 0.65rem; font-weight: 900; padding: 2px 6px; border-radius: 6px; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.8); pointer-events: none; border: 1px solid #000; transition: top 0.2s, left 0.2s; }
-    
-    /* ⚡ THE DYNAMIC PERIMETER CSS */
-    .tile.fixed { box-sizing: border-box; transition: border-radius 0.2s ease, border 0.2s ease; }
-    .tile.fixed.edge-t { border-top: 2px solid var(--gold); }
-    .tile.fixed.edge-r { border-right: 2px solid var(--gold); }
-    .tile.fixed.edge-b { border-bottom: 2px solid var(--gold); }
-    .tile.fixed.edge-l { border-left: 2px solid var(--gold); }
-    .tile.fixed.corner-tl { border-top-left-radius: 8px !important; }
-    .tile.fixed.corner-tr { border-top-right-radius: 8px !important; }
-    .tile.fixed.corner-bl { border-bottom-left-radius: 8px !important; }
-    .tile.fixed.corner-br { border-bottom-right-radius: 8px !important; }
-    `;
+    style.innerText = `.grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap || '2px'}; border: 1px solid var(--gridLine); } .cell { background: var(--obsidian); backdrop-filter: blur(${m.effects.blur}); -webkit-backdrop-filter: blur(${m.effects.blur}); box-shadow: ${m.effects.bevel}; position: relative; } .dl { color: var(--dl); box-shadow: inset 0 0 ${m.effects.glow} var(--dl); } .tl { color: var(--tl); box-shadow: inset 0 0 ${m.effects.glow} var(--tl); } .dw { color: var(--dw); box-shadow: inset 0 0 ${m.effects.glow} var(--dw); } .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } #total-score { color: var(--gold); } .live-score-badge { position: absolute; background: var(--dl); color: #000; font-size: 0.65rem; font-weight: 900; padding: 2px 6px; border-radius: 6px; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.8); pointer-events: none; border: 1px solid #000; transition: top 0.2s, left 0.2s; } .tile.fixed { box-sizing: border-box; transition: border-radius 0.2s ease, border 0.2s ease; } .tile.fixed.edge-t { border-top: 2px solid var(--gold); } .tile.fixed.edge-r { border-right: 2px solid var(--gold); } .tile.fixed.edge-b { border-bottom: 2px solid var(--gold); } .tile.fixed.edge-l { border-left: 2px solid var(--gold); } .tile.fixed.corner-tl { border-top-left-radius: 8px !important; } .tile.fixed.corner-tr { border-top-right-radius: 8px !important; } .tile.fixed.corner-bl { border-bottom-left-radius: 8px !important; } .tile.fixed.corner-br { border-bottom-right-radius: 8px !important; }`;
     document.head.appendChild(style);
 }
 
 function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = ''; if(!board) return; for(let i=0; i<board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout && layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
 function buildUI() { if(!ui) return; const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; if(btn.action === 'shuffleRack') b.onclick = shuffleRack; if(btn.action === 'recallTiles') b.onclick = recallTiles; if(btn.action === 'toggleTheme') b.onclick = () => { currentMode = currentMode === 'dark' ? 'light' : 'dark'; applyLexiconTheme(); }; if(btn.action === 'playWord') b.onclick = handlePlayWord; if(btn.action === 'goHome') b.onclick = () => window.location.href='index.html'; ctrl.appendChild(b); }); }
 function initBag() { if(!tiles) return; tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }
-
 function refillRack() { 
-    const r = document.getElementById('rack'); 
-    let currentTiles = Array.from(r.querySelectorAll('.tile'));
-    let needed = 7 - currentTiles.length;
-    if (needed <= 0 || bag.length === 0) return;
-
-    const isVowel = (l) => ['A','E','I','O','U','?'].includes(l);
-    let hasVowel = currentTiles.some(t => isVowel(t.dataset.raw));
-
+    const r = document.getElementById('rack'); let currentTiles = Array.from(r.querySelectorAll('.tile')); let needed = 7 - currentTiles.length; if (needed <= 0 || bag.length === 0) return;
+    const isVowel = (l) => ['A','E','I','O','U','?'].includes(l); let hasVowel = currentTiles.some(t => isVowel(t.dataset.raw));
     for (let i = 0; i < needed && bag.length > 0; i++) {
         let data;
-        if (!hasVowel && i === needed - 1) {
-            const vIdx = bag.findIndex(t => isVowel(t.l));
-            if (vIdx !== -1) {
-                data = bag.splice(vIdx, 1)[0]; 
-            } else {
-                data = bag.pop(); 
-            }
-        } else {
-            data = bag.pop(); 
-        }
-
+        if (!hasVowel && i === needed - 1) { const vIdx = bag.findIndex(t => isVowel(t.l)); if (vIdx !== -1) { data = bag.splice(vIdx, 1)[0]; } else { data = bag.pop(); } } else { data = bag.pop(); }
         if (isVowel(data.l)) hasVowel = true;
-
-        const t = document.createElement('div'); 
-        t.className = 'tile'; 
-        const displayVal = data.l === '?' ? '?' : data.v;
-        
-        t.innerHTML = `<span>${data.l}</span><span class="val">${displayVal}</span>`; 
-        t.dataset.letter = data.l; 
-        t.dataset.raw = data.l; 
-        t.dataset.value = data.v; 
-        r.appendChild(t); 
-        makeDraggable(t); 
+        const t = document.createElement('div'); t.className = 'tile'; const displayVal = data.l === '?' ? '?' : data.v;
+        t.innerHTML = `<span>${data.l}</span><span class="val">${displayVal}</span>`; t.dataset.letter = data.l; t.dataset.raw = data.l; t.dataset.value = data.v; 
+        r.appendChild(t); makeDraggable(t); 
     } 
 }
 
 function buildHeader() { document.getElementById('game-header').innerHTML = `<div id="total-score" style="font-size: 2.2rem; font-weight: 900; color:var(--gold)">000</div>`; }
 function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
-
 function shuffleRack() { const rack = document.getElementById('rack'); const t = Array.from(rack.querySelectorAll('.tile')); t.sort(() => Math.random() - 0.5); t.forEach(tile => { tile.style.transform = 'scale(0.8)'; rack.appendChild(tile); setTimeout(() => tile.style.transform = 'none', 50); }); }
 function recallTiles() { const rack = document.getElementById('rack'); placedTiles.forEach(p => { p.el.classList.remove('on-board'); p.el.style.width = '44px'; p.el.style.height = '44px'; p.el.style.margin = '0'; p.el.style.left = 'auto'; p.el.style.top = 'auto'; p.el.style.position = 'relative'; p.el.style.transform = 'none'; rack.appendChild(p.el); }); placedTiles = []; updateLiveScore(); }
 

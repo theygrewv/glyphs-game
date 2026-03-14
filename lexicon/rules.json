@@ -1,15 +1,11 @@
 {
   "placement": {
-    "requireEmpty": true,
-    "snapTolerance": 50,
-    "preventScroll": true
+    "logic": "grid-math",
+    "playableClass": "cell",
+    "snapToCenter": true
   },
-  "mobility": {
-    "allowBoardToBoard": true,
-    "liftScale": 1.1
-  },
-  "dragging": {
-    "activeScale": 1.2,
-    "activeOpacity": 0.95
+  "constraints": {
+    "allowOverlap": false,
+    "requireEmpty": true
   }
 }

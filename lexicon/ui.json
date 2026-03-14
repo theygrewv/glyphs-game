@@ -1,8 +1,8 @@
 {
-  "header": { "scoreLabel": "000", "pbPrefix": "PB:" },
   "buttons": [
-    {"id": "mode-toggle", "text": "🌓", "class": "btn toggle-btn", "action": "toggleTheme"},
-    {"id": "recall-btn", "text": "Recall", "class": "btn", "action": "recall"},
-    {"id": "play-btn", "text": "Play Word", "class": "btn primary", "action": "play"}
+    {"text": "Recall", "class": "btn secondary", "action": "recallTiles"},
+    {"text": "Shuffle", "class": "btn secondary", "action": "shuffleRack"},
+    {"text": "Play", "class": "btn primary", "action": "playWord"},
+    {"text": "Mode", "class": "btn", "action": "toggleTheme"}
   ]
 }

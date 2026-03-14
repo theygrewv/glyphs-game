@@ -43,6 +43,8 @@ function applyLexiconTheme() {
         #word-checker { background: #000; border: 1px solid var(--gridLine); color: var(--gold); padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; width: 100px; outline: none; }
         #checker-result { font-size: 0.6rem; font-weight: 900; }
         .valid { color: #4CAF50; } .invalid { color: #FF5252; }
+        .dragging { z-index: 5000; pointer-events: none; }
+        #drag-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5000; }
     `;
     document.head.appendChild(style);
 }
@@ -56,10 +58,14 @@ function buildHeader() {
         </div>
         <div style="display:flex; justify-content:space-between; padding: 10px; align-items:center;">
             <div><small>YOU</small><div id="score-player" style="color:var(--gold); font-size:1.5rem; font-weight:900;">000</div></div>
-            <div id="turn-status" style="font-size:0.7rem; letter-spacing:1px;">YOUR TURN</div>
+            <div style="text-align:center;">
+                <div id="turn-status" style="font-size:0.7rem; letter-spacing:1px; margin-bottom:2px;">YOUR TURN</div>
+                <div id="bag-count" style="font-size:0.6rem; color:#888;">BAG: 0</div>
+            </div>
             <div style="text-align:right"><small>BOT</small><div id="score-bot" style="color:var(--tw); font-size:1.5rem; font-weight:900;">000</div></div>
         </div>
     `;
+    updateBagUI();
     const input = document.getElementById('word-checker');
     input.oninput = (e) => {
         const val = e.target.value.toUpperCase();
@@ -73,112 +79,97 @@ function buildHeader() {
     };
 }
 
-function buildGrid() {
-    const g = document.getElementById('grid');
-    g.innerHTML = '';
-    for(let i=0; i<board.size; i++) {
-        const c = document.createElement('div');
-        c.className = 'cell';
-        c.dataset.index = i;
-        if(layout[i]) {
-            c.innerText = layout[i].t;
-            c.classList.add(layout[i].c);
+function updateBagUI() {
+    const el = document.getElementById('bag-count');
+    if (el) el.innerText = `BAG: ${bag.length}`;
+}
+
+function makeDraggable(el) {
+    let ox, oy, gRect;
+    const dragLayer = document.getElementById('drag-layer') || (()=>{
+        const d = document.createElement('div'); d.id='drag-layer'; document.body.appendChild(d); return d;
+    })();
+
+    const start = (e) => {
+        if(el.classList.contains('fixed') || currentPlayer !== 'player') return;
+        const t = e.touches ? e.touches[0] : e;
+        gRect = document.getElementById('grid').getBoundingClientRect();
+        
+        if(el.parentElement.classList.contains('cell')) {
+            placedTiles = placedTiles.filter(p => p.el !== el);
         }
-        g.appendChild(c);
-    }
-}
+        
+        activeTile = el;
+        ox = 22; oy = 22; // Center offset
+        el.style.width = '44px'; el.style.height = '44px';
+        el.style.position = 'fixed';
+        dragLayer.appendChild(el);
+        el.classList.add('dragging');
+        
+        currentX = t.clientX - ox; currentY = t.clientY - oy;
+        targetX = currentX; targetY = currentY;
+        if(e.cancelable) e.preventDefault();
+    };
 
-function buildUI() {
-    if (!document.querySelector('.nav-back')) {
-        const nav = document.createElement('div');
-        nav.className = 'nav-back'; nav.innerText = '◀';
-        nav.onclick = () => window.location.href = 'index.html';
-        document.body.appendChild(nav);
-    }
+    const move = (e) => {
+        if(!activeTile || activeTile !== el) return;
+        const t = e.touches ? e.touches[0] : e;
+        targetX = t.clientX - ox; targetY = t.clientY - oy;
+    };
 
-    const ctrl = document.getElementById('ui-controls');
-    ctrl.innerHTML = '';
-    ui.buttons.forEach(btn => {
-        const b = document.createElement('button');
-        b.className = btn.class; b.innerText = btn.text;
-        b.onclick = () => {
-            if(btn.action === 'shuffleRack') shuffleRack();
-            if(btn.action === 'recallTiles') recallTiles();
-            if(btn.action === 'swapTiles') swapTiles();
-            if(btn.action === 'playWord') handlePlayWord(false);
-            if(btn.action === 'passTurn') { recallTiles(); switchTurn('bot'); }
-        };
-        ctrl.appendChild(b);
-    });
-}
+    const end = (e) => {
+        if(!activeTile || activeTile !== el) return;
+        el.classList.remove('dragging');
+        activeTile = null;
+        const t = e.changedTouches ? e.changedTouches[0] : e;
+        
+        if (t.clientX >= gRect.left && t.clientX <= gRect.right && t.clientY >= gRect.top && t.clientY <= gRect.bottom) {
+            const col = Math.floor((t.clientX - gRect.left) / (gRect.width / board.cols));
+            const row = Math.floor((t.clientY - gRect.top) / (gRect.height / (board.size / board.cols)));
+            const idx = (row * board.cols) + col;
+            const targetCell = document.querySelector(`.cell[data-index="${idx}"]`);
+            
+            if (targetCell && !targetCell.querySelector('.tile')) {
+                targetCell.appendChild(el);
+                el.style.position = 'absolute'; el.style.left = '0'; el.style.top = '0';
+                el.style.width = '100%'; el.style.height = '100%';
+                el.style.transform = 'none';
+                placedTiles.push({el, index: idx});
+                return;
+            }
+        }
+        
+        const rack = document.getElementById('rack');
+        rack.appendChild(el);
+        el.style.position = 'relative'; el.style.left = 'auto'; el.style.top = 'auto';
+        el.style.width = '44px'; el.style.height = '44px'; el.style.transform = 'none';
+    };
 
-function initBag() {
-    bag = [];
-    tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); });
-    bag.sort(() => Math.random() - 0.5);
-}
-
-function refillRack(rackId) {
-    const r = document.getElementById(rackId);
-    let needed = 7 - r.querySelectorAll('.tile').length;
-    for (let i = 0; i < needed && bag.length > 0; i++) {
-        let data = bag.pop();
-        const t = document.createElement('div');
-        t.className = 'tile';
-        t.innerHTML = `<span>${data.l}</span><span class="val">${data.l === '?' ? '?' : data.v}</span>`;
-        t.dataset.letter = data.l; t.dataset.raw = data.l; t.dataset.value = data.v;
-        r.appendChild(t);
-        if (rackId === 'rack') makeDraggable(t);
-    }
-}
-
-function swapTiles() {
-    if (currentPlayer !== 'player' || bag.length < 7) return;
-    recallTiles();
-    const rack = document.getElementById('rack');
-    Array.from(rack.querySelectorAll('.tile')).forEach(t => {
-        bag.push({ l: t.dataset.raw, v: parseInt(t.dataset.value) });
-        t.remove();
-    });
-    bag.sort(() => Math.random() - 0.5);
-    refillRack('rack');
-    switchTurn('bot');
-}
-
-function switchTurn(next) {
-    currentPlayer = next;
-    document.getElementById('turn-status').innerText = next === 'bot' ? "🤖 COMPUTING..." : "YOUR TURN";
-    if (next === 'bot' && typeof playBotTurn === 'function') setTimeout(playBotTurn, 1000);
+    el.addEventListener('touchstart', start, {passive: false});
+    window.addEventListener('touchmove', move, {passive: false});
+    window.addEventListener('touchend', end, {passive: false});
 }
 
 function updateMotion() { 
-    if (activeTile && physics) { 
-        currentX += (targetX - currentX) * (physics.motion.lerp || 0.4); 
-        currentY += (targetY - currentY) * (physics.motion.lerp || 0.4); 
-        activeTile.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) scale(${physics.motion.dragScale})`; 
+    if (activeTile) { 
+        currentX += (targetX - currentX) * 0.4; 
+        currentY += (targetY - currentY) * 0.4; 
+        activeTile.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) scale(1.1)`; 
     } 
     requestAnimationFrame(updateMotion); 
 }
 
-function recallTiles() {
-    const r = document.getElementById('rack');
-    placedTiles.forEach(p => {
-        p.el.classList.remove('on-board');
-        p.el.style.position = 'relative'; p.el.style.transform = 'none';
-        r.appendChild(p.el);
-    });
-    placedTiles = [];
-}
-
-function shuffleRack() {
-    const r = document.getElementById('rack');
-    const t = Array.from(r.querySelectorAll('.tile')).sort(() => Math.random() - 0.5);
-    t.forEach(tile => r.appendChild(tile));
-}
-
+/* Include existing initBag, refillRack, swapTiles, buildUI, buildGrid from previous step */
+function initBag() { bag = []; tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); updateBagUI(); }
+function refillRack(rackId) { const r = document.getElementById(rackId); let needed = 7 - r.querySelectorAll('.tile').length; for (let i = 0; i < needed && bag.length > 0; i++) { let data = bag.pop(); const t = document.createElement('div'); t.className = 'tile'; t.innerHTML = `<span>${data.l}</span><span class="val">${data.l === '?' ? '?' : data.v}</span>`; t.dataset.letter = data.l; t.dataset.raw = data.l; t.dataset.value = data.v; r.appendChild(t); if (rackId === 'rack') makeDraggable(t); } updateBagUI(); }
+function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = ''; for(let i=0; i<board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
+function buildUI() { if (!document.querySelector('.nav-back')) { const nav = document.createElement('div'); nav.className = 'nav-back'; nav.innerText = '◀'; nav.onclick = () => window.location.href = 'index.html'; document.body.appendChild(nav); } const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; b.onclick = () => { if(btn.action === 'shuffleRack') shuffleRack(); if(btn.action === 'recallTiles') recallTiles(); if(btn.action === 'swapTiles') swapTiles(); if(btn.action === 'playWord') handlePlayWord(false); if(btn.action === 'passTurn') { recallTiles(); switchTurn('bot'); } }; ctrl.appendChild(b); }); }
+function swapTiles() { if (currentPlayer !== 'player' || bag.length < 7) return; recallTiles(); const rack = document.getElementById('rack'); Array.from(rack.querySelectorAll('.tile')).forEach(t => { bag.push({ l: t.dataset.raw, v: parseInt(t.dataset.value) }); t.remove(); }); bag.sort(() => Math.random() - 0.5); refillRack('rack'); switchTurn('bot'); }
+function switchTurn(next) { currentPlayer = next; document.getElementById('turn-status').innerText = next === 'bot' ? "🤖 COMPUTING..." : "YOUR TURN"; if (next === 'bot' && typeof playBotTurn === 'function') setTimeout(playBotTurn, 1000); }
+function recallTiles() { const r = document.getElementById('rack'); placedTiles.forEach(p => { p.el.classList.remove('on-board'); p.el.style.position = 'relative'; p.el.style.transform = 'none'; r.appendChild(p.el); }); placedTiles = []; }
+function shuffleRack() { const r = document.getElementById('rack'); const t = Array.from(r.querySelectorAll('.tile')).sort(() => Math.random() - 0.5); t.forEach(tile => r.appendChild(tile)); }
 function getTileAt(i) { return document.querySelector(`.cell[data-index="${i}"] .tile`); }
 function loadGameState() { return false; }
 function setupWildcard() {}
-function makeDraggable(el) { /* Re-add your draggable logic here if needed */ }
 
 startEngine();

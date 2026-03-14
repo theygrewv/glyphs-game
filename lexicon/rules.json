@@ -1,8 +1,13 @@
 {
   "placement": {
-    "logic": "strict-grid-math",
-    "hitSlop": 40,
-    "snapToCenter": true
+    "logic": "strict-grid-math-page-coords",
+    "hitSlop": 40
+  },
+  "validation": {
+    "requireAlignment": true,
+    "requireContiguous": true,
+    "requireConnection": true,
+    "centerIndex": 112
   },
   "visuals": {
     "dragScale": 1.3,
@@ -10,7 +15,6 @@
     "lerpAmount": 0.2
   },
   "mobility": {
-    "allowBoardToBoard": true,
-    "interactiveOnBoard": true
+    "allowBoardToBoard": true
   }
 }

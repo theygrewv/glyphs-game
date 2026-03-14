@@ -17,7 +17,7 @@ async function startEngine() {
         
         if(playRules && playRules.validation.dictionaryUrl) {
             const dText = await fetch(playRules.validation.dictionaryUrl).then(r => r.text());
-            dictionary = new Set(dText.toUpperCase().split('\n'));
+            dictionary = new Set(dText.toUpperCase().match(/[A-Z]+/g));
         }
         
         applyLexiconTheme(); buildHeader(); buildGrid(); buildUI(); initBag(); refillRack(); setupWildcard();

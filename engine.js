@@ -121,7 +121,7 @@ function makeDraggable(el) {
     window.addEventListener('touchend', end, { passive: false });
 }
 
-/* ⚡ LIVE SCORE PREVIEW ENGINE */
+/* ⚡ TOP-RIGHT LIVE SCORE PREVIEW ENGINE */
 function updateLiveScore() {
     document.querySelectorAll('.live-score-badge').forEach(e => e.remove());
     if (!placedTiles.length) return;
@@ -158,15 +158,23 @@ function updateLiveScore() {
         finalScore += scoring.bonuses.bingo;
     }
 
-    // ⚡ THE FIX: Always attach to the final cell of the FULL word sequence
     const lastWordIdx = full[full.length - 1];
     const lastCellEl = document.querySelector(`.cell[data-index="${lastWordIdx}"]`);
     
     if (lastCellEl) {
+        // ⚡ MAP EXACT GRID COORDINATES SO IT DECOUPLES FROM THE CELL STACK
+        const rect = lastCellEl.getBoundingClientRect();
+        const gRect = document.getElementById('grid').getBoundingClientRect();
+
         const badge = document.createElement('div');
         badge.className = 'live-score-badge';
         badge.innerText = finalScore;
-        lastCellEl.appendChild(badge);
+        
+        // Pin it to the Top-Right, safely inside the main grid layer
+        badge.style.left = `${(rect.left - gRect.left) + rect.width - 12}px`;
+        badge.style.top = `${(rect.top - gRect.top) - 12}px`;
+        
+        document.getElementById('grid').appendChild(badge);
     }
 }
 
@@ -314,7 +322,9 @@ function applyLexiconTheme() {
     .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } 
     .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } 
     #total-score { color: var(--gold); } 
-    .live-score-badge { position: absolute; bottom: -6px; right: -6px; background: var(--dl); color: #000; font-size: 0.6rem; font-weight: 900; padding: 2px 6px; border-radius: 6px; z-index: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.8); pointer-events: none; border: 1px solid #000; }
+    
+    /* ⚡ THE DECOUPLED BADGE (Absolute to Grid) */
+    .live-score-badge { position: absolute; background: var(--dl); color: #000; font-size: 0.65rem; font-weight: 900; padding: 2px 6px; border-radius: 6px; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.8); pointer-events: none; border: 1px solid #000; }
     `;
     document.head.appendChild(style);
 }

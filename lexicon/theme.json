@@ -3,9 +3,18 @@
   "modes": {
     "dark": {
       "colors": {
-        "bg": "#050505", "text": "#ffffff", "gridLine": "rgba(255,255,255,0.1)", "gold": "#D4AF37", "obsidian": "rgba(20,20,20,0.8)"
+        "bg": "#050505",
+        "text": "#ffffff",
+        "gridLine": "rgba(255, 255, 255, 0.15)",
+        "gold": "#D4AF37",
+        "obsidian": "rgba(20, 20, 20, 0.85)",
+        "dl": "#00FFFF",
+        "tl": "#7851A9",
+        "dw": "#FF8C00",
+        "tw": "#E0115F",
+        "dd": "#FFFF00"
       },
-      "effects": { "blur": "12px", "glow": "10px", "bevel": "none" }
+      "effects": { "blur": "12px", "glow": "12px", "bevel": "none" }
     }
   }
 }

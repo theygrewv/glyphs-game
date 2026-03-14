@@ -1,0 +1,12 @@
+{
+  "options": "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  "mechanics": {
+    "triggerOnDrop": true,
+    "pointValue": 0,
+    "wildChar": "?"
+  },
+  "ui": {
+    "title": "SELECT GLYPH",
+    "columns": 6
+  }
+}

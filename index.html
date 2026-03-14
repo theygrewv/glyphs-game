@@ -4,48 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Glyphs: Lexicon Engine</title>
-    <style id="dynamic-styles">
+    <style>
         :root { --bg: #000; --text: #fff; }
         body { background: var(--bg); color: var(--text); margin: 0; font-family: sans-serif; height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 10px 0; -webkit-user-select: none; }
         .grid { display: grid; width: 92vw; max-width: 400px; aspect-ratio: 1/1; z-index: 50; position: relative; }
         .cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; }
         .cell.hover { background: rgba(255, 255, 255, 0.2) !important; }
         #rack { display: flex; justify-content: center; align-items: center; gap: 8px; width: 92vw; max-width: 400px; height: 80px; margin-bottom: 75px; z-index: 10; }
-        
-        .tile { width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; pointer-events: auto !important; z-index: 100; transition: transform 0.2s; }
+        .tile { width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; z-index: 100; pointer-events: auto !important; }
         .tile.dragging { position: fixed !important; z-index: 1000000 !important; pointer-events: none; opacity: 0.98; }
         .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; z-index: 500 !important; }
         .tile.fixed { filter: brightness(0.8); pointer-events: none !important; }
-        .tile.wild { color: #D4AF37; text-shadow: 0 0 5px rgba(212, 175, 55, 0.5); }
-
-        /* WILDCARD MODAL - THE SKY LAYER */
-        #wildcard-modal { 
-            position: fixed; inset: 0; background: rgba(0,0,0,0.9); 
-            z-index: 2000000; display: none; flex-direction: column; 
-            align-items: center; justify-content: center; backdrop-filter: blur(15px);
-        }
-        .modal-title { color: #fff; font-weight: 900; margin-bottom: 20px; letter-spacing: 2px; }
-        .wild-grid { 
-            display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; 
-            padding: 20px; background: #111; border-radius: 15px; border: 1px solid #333;
-        }
-        .wild-btn { 
-            width: 45px; height: 45px; background: #fff; color: #000; 
-            display: flex; align-items: center; justify-content: center; 
-            font-weight: 900; border-radius: 8px; font-size: 1.2rem;
-        }
-
+        #wildcard-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000000; display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
+        .wild-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; padding: 20px; background: #111; border-radius: 15px; }
+        .wild-btn { width: 45px; height: 45px; background: #fff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 900; border-radius: 8px; }
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; opacity: 0.6; }
         .controls { display: flex; gap: 8px; z-index: 10; }
         .btn { background: #222; color: #fff; border: none; padding: 12px 18px; border-radius: 30px; font-weight: 900; font-size: 0.65rem; text-transform: uppercase; }
-        .primary { background: #fff; color: #000; }
     </style>
 </head>
 <body>
-    <div id="wildcard-modal">
-        <div class="modal-title" id="wild-title">SELECT GLYPH</div>
-        <div class="wild-grid" id="wild-grid"></div>
-    </div>
+    <div id="wildcard-modal"><div class="wild-grid" id="wild-grid"></div></div>
     <header id="game-header"></header>
     <div class="grid" id="grid"></div>
     <div class="controls" id="ui-controls"></div>
@@ -54,50 +33,48 @@
     <script>
         let layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring, wildLex;
         let dictionary = new Set(), bag = [], placedTiles = [], totalScore = 0, currentMode = 'dark';
-        let activeTile = null, targetX = 0, targetY = 0, currentX = 0, currentY = 0;
-        let wildTileTarget = null;
+        let activeTile = null, targetX = 0, targetY = 0, currentX = 0, currentY = 0, wildTarget = null;
 
         async function startEngine() {
             try {
+                const fetchJson = (url) => fetch(url).then(r => r.ok ? r.json() : null);
                 const res = await Promise.all([
-                    fetch('./lexicon/layout.json').then(r => r.json()), fetch('./lexicon/board.json').then(r => r.json()),
-                    fetch('./lexicon/tiles.json').then(r => r.json()), fetch('./lexicon/theme.json').then(r => r.json()),
-                    fetch('./lexicon/ui.json').then(r => r.json()), fetch('./lexicon/rules.json').then(r => r.json()),
-                    fetch('./lexicon/play.json').then(r => r.json()), fetch('./lexicon/draw.json').then(r => r.json()),
-                    fetch('./lexicon/scoring.json').then(r => r.json()), fetch('./lexicon/wildcard.json').then(r => r.json())
+                    fetchJson('./lexicon/layout.json'), fetchJson('./lexicon/board.json'),
+                    fetchJson('./lexicon/tiles.json'), fetchJson('./lexicon/theme.json'),
+                    fetchJson('./lexicon/ui.json'), fetchJson('./lexicon/rules.json'),
+                    fetchJson('./lexicon/play.json'), fetchJson('./lexicon/draw.json'),
+                    fetchJson('./lexicon/scoring.json'), fetchJson('./lexicon/wildcard.json')
                 ]);
                 [layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring, wildLex] = res;
-                currentMode = theme.active || 'dark';
-                const dText = await fetch(playRules.validation.dictionaryUrl).then(r => r.text());
-                dictionary = new Set(dText.toUpperCase().split('\n'));
-                applyLexiconTheme(); buildHeader(); buildGrid(); buildUI(); initBag(); refillRack(); setupWildcardUI();
+                
+                currentMode = theme?.active || 'dark';
+                if(playRules) {
+                    const dText = await fetch(playRules.validation.dictionaryUrl).then(r => r.text());
+                    dictionary = new Set(dText.toUpperCase().split('\n'));
+                }
+                
+                applyLexiconTheme(); buildHeader(); buildGrid(); buildUI(); initBag(); refillRack(); setupWildcard();
                 requestAnimationFrame(updateMotion);
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Critical Engine Error:", e); }
         }
 
-        function setupWildcardUI() {
+        function setupWildcard() {
+            if(!wildLex) return;
             const container = document.getElementById('wild-grid');
-            document.getElementById('wild-title').innerText = wildLex.ui.title;
-            wildLex.options.split('').forEach(letter => {
-                const b = document.createElement('div');
-                b.className = 'wild-btn'; b.innerText = letter;
-                b.onclick = () => selectWildLetter(letter);
+            wildLex.options.split('').forEach(l => {
+                const b = document.createElement('div'); b.className = 'wild-btn'; b.innerText = l;
+                b.onclick = () => {
+                    if(!wildTarget) return;
+                    wildTarget.dataset.letter = l; wildTarget.querySelector('span').innerText = l;
+                    document.getElementById('wildcard-modal').style.display = 'none';
+                    wildTarget = null;
+                };
                 container.appendChild(b);
             });
         }
 
-        function selectWildLetter(letter) {
-            if (!wildTileTarget) return;
-            wildTileTarget.dataset.letter = letter;
-            wildTileTarget.dataset.value = wildLex.mechanics.pointValue;
-            wildTileTarget.querySelector('span').innerText = letter;
-            wildTileTarget.classList.add('wild');
-            document.getElementById('wildcard-modal').style.display = 'none';
-            wildTileTarget = null;
-        }
-
         function updateMotion() {
-            if (activeTile) {
+            if (activeTile && rules?.visuals) {
                 const lerp = rules.visuals.lerpAmount || 0.2;
                 currentX += (targetX - currentX) * lerp;
                 currentY += (targetY - currentY) * lerp;
@@ -116,8 +93,7 @@
                 gRect = document.getElementById('grid').getBoundingClientRect();
                 if(el.parentElement.classList.contains('cell')) {
                     placedTiles = placedTiles.filter(p => p.el !== el);
-                    el.classList.remove('on-board');
-                    el.style.width = '44px'; el.style.height = '44px';
+                    el.classList.remove('on-board'); el.style.width = '44px'; el.style.height = '44px';
                 }
                 activeTile = el; document.body.appendChild(el);
                 currentX = t.clientX - ox; currentY = t.clientY - oy;
@@ -129,14 +105,6 @@
                 if(!activeTile || activeTile !== el) return;
                 const t = e.touches ? e.touches[0] : e;
                 targetX = t.clientX - ox; targetY = t.clientY - oy;
-                document.querySelectorAll('.cell.hover').forEach(c => c.classList.remove('hover'));
-                const col = Math.floor((t.clientX - gRect.left) / (gRect.width / board.cols));
-                const row = Math.floor((t.clientY - gRect.top) / (gRect.height / (board.size / board.cols)));
-                const idx = (row * board.cols) + col;
-                if (idx >= 0 && idx < board.size && t.clientX >= gRect.left && t.clientX <= gRect.right) {
-                    const targetCell = document.querySelector(`.cell[data-index="${idx}"]`);
-                    if(targetCell && !targetCell.querySelector('.tile')) targetCell.classList.add('hover');
-                }
             };
             const end = (e) => {
                 if(!activeTile || activeTile !== el) return;
@@ -153,17 +121,11 @@
                         el.style.width = '100%'; el.style.height = '100%';
                         el.style.left = '0'; el.style.top = '0'; el.style.position = 'absolute';
                         el.style.transform = 'none'; placedTiles.push({el, index: idx});
-                        
-                        // WILDCARD TRIGGER - Immediate
-                        if (el.dataset.raw === '?') {
-                            wildTileTarget = el;
-                            document.getElementById('wildcard-modal').style.display = 'flex';
-                        }
+                        if (el.dataset.letter === '?') { wildTarget = el; document.getElementById('wildcard-modal').style.display = 'flex'; }
                         return;
                     }
                 }
-                document.getElementById('rack').appendChild(el);
-                el.style.width = '44px'; el.style.height = '44px';
+                document.getElementById('rack').appendChild(el); el.style.width = '44px'; el.style.height = '44px';
                 el.style.left = 'auto'; el.style.top = 'auto'; el.style.position = 'relative'; el.style.transform = 'none';
             };
             el.addEventListener('touchstart', start, { passive: false });
@@ -171,15 +133,17 @@
             window.addEventListener('touchend', end, { passive: false });
         }
 
-        /* --- UI & HELPERS --- */
-        function applyLexiconTheme() { if (!theme || !theme.modes[currentMode]) return; const m = theme.modes[currentMode]; const root = document.documentElement.style; Object.keys(m.colors).forEach(k => root.setProperty(`--${k}`, m.colors[k])); const style = document.getElementById('lexicon-styles') || document.createElement("style"); style.id = 'lexicon-styles'; style.innerText = `.grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap}; border: 1px solid var(--gridLine); } .cell { background: var(--obsidian); backdrop-filter: blur(${m.effects.blur}); -webkit-backdrop-filter: blur(${m.effects.blur}); box-shadow: ${m.effects.bevel}; } .dl { color: var(--dl); box-shadow: inset 0 0 ${m.effects.glow} var(--dl); } .tl { color: var(--tl); box-shadow: inset 0 0 ${m.effects.glow} var(--tl); } .dw { color: var(--dw); box-shadow: inset 0 0 ${m.effects.glow} var(--dw); } .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } #total-score { color: var(--gold); }`; document.head.appendChild(style); }
-        function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = ''; for(let i=0; i<board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
-        function buildUI() { const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; if(btn.action === 'recallTiles') b.onclick = () => location.reload(); if(btn.action === 'playWord') b.onclick = handlePlayWord; ctrl.appendChild(b); }); }
-        function initBag() { tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }
-        function refillRack() { const r = document.getElementById('rack'); const cur = r.querySelectorAll('.tile').length; for(let i=0; i<(7-cur) && bag.length; i++) { const data = bag.pop(); const t = document.createElement('div'); t.className = 'tile'; t.innerHTML = `<span>${data.l}</span><span class="val">${data.v}</span>`; t.dataset.letter = data.l; t.dataset.raw = data.l; t.dataset.value = data.v; r.appendChild(t); makeDraggable(t); } }
+        function applyLexiconTheme() {
+            if (!theme || !theme.modes[currentMode]) return;
+            const m = theme.modes[currentMode];
+            const root = document.documentElement.style;
+            Object.keys(m.colors).forEach(k => root.setProperty(`--${k}`, m.colors[k]));
+        }
+        function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = ''; if(!board) return; for(let i=0; i<board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout && layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
+        function buildUI() { if(!ui) return; const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; ctrl.appendChild(b); }); }
+        function initBag() { if(!tiles) return; tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }
+        function refillRack() { const r = document.getElementById('rack'); const cur = r.querySelectorAll('.tile').length; for(let i=0; i<(7-cur) && bag.length; i++) { const data = bag.pop(); const t = document.createElement('div'); t.className = 'tile'; t.innerHTML = `<span>${data.l}</span><span class="val">${data.v}</span>`; t.dataset.letter = data.l; r.appendChild(t); makeDraggable(t); } }
         function buildHeader() { document.getElementById('game-header').innerHTML = `<div id="total-score" style="font-size: 2.2rem; font-weight: 900; color:var(--gold)">000</div>`; }
-        function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
-        function handlePlayWord() { if(!placedTiles.length) return; placedTiles.sort((a,b)=>a.index-b.index); const isH = Math.floor(placedTiles[0].index/board.cols) === Math.floor(placedTiles[placedTiles.length-1].index/board.cols); const step = isH ? 1 : board.cols; let full = [], curr = placedTiles[0].index; while(curr >= 0 && getTileAt(curr-step)) curr -= step; while(curr < board.size && getTileAt(curr)) { full.push(curr); curr += step; } const word = full.map(idx => getTileAt(idx).dataset.letter).join(''); if(dictionary.has(word)) { placedTiles.forEach(p => p.el.classList.add('fixed')); placedTiles = []; refillRack(); } }
         startEngine();
     </script>
 </body>

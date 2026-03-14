@@ -12,14 +12,21 @@
         .cell.hover { background: rgba(255, 255, 255, 0.25) !important; box-shadow: inset 0 0 15px rgba(255,255,255,0.5); }
         #rack { display: flex; justify-content: center; align-items: center; gap: 6px; width: 96vw; max-width: 400px; height: 80px; margin-bottom: 75px; z-index: 10; }
         
-        .tile { width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; pointer-events: auto !important; touch-action: none; z-index: 100; transform-origin: center; }
+        .tile { 
+            width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; 
+            display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; 
+            pointer-events: auto !important; touch-action: none; z-index: 100; transform-origin: center; 
+            /* 🚫 CSS TRANSFORM TRANSITION REMOVED TO ALLOW INSTANT JS SNAPPING */
+            transition: box-shadow 0.15s, filter 0.15s;
+        }
+        
         .tile.dragging { position: fixed !important; z-index: 1000000 !important; pointer-events: none; opacity: 0.98; box-shadow: 0 15px 25px rgba(0,0,0,0.6); }
         .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; z-index: 500 !important; box-shadow: none; font-size: 18px; }
         .tile.fixed { filter: brightness(0.85); pointer-events: none !important; }
         .tile.wild { color: var(--gold); }
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; opacity: 0.7; }
 
-        /* MODAL & FEEDBACK */
         #wildcard-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000000; display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
         .modal-title { color: #fff; font-weight: 900; margin-bottom: 20px; letter-spacing: 2px; }
         .wild-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; padding: 20px; background: #111; border-radius: 15px; border: 1px solid #333; }
@@ -36,10 +43,7 @@
     </style>
 </head>
 <body>
-    <div id="wildcard-modal">
-        <div class="modal-title" id="wild-title">SELECT GLYPH</div>
-        <div class="wild-grid" id="wild-grid"></div>
-    </div>
+    <div id="wildcard-modal"><div class="modal-title" id="wild-title">SELECT GLYPH</div><div class="wild-grid" id="wild-grid"></div></div>
     <header id="game-header"></header>
     <div class="grid" id="grid"></div>
     <div class="controls" id="ui-controls"></div>
@@ -73,7 +77,6 @@
             } catch (e) { console.error("Engine Error:", e); }
         }
 
-        /* --- DRAG PHYSICS --- */
         function updateMotion() {
             if (activeTile && rules?.visuals) {
                 const lerp = rules.visuals.lerpAmount || 0.25;
@@ -90,26 +93,31 @@
                 if(el.classList.contains('fixed')) return;
                 const t = e.touches ? e.touches[0] : e;
                 
-                // THUMB SNAP: Force grab offset to the exact center of the 44px tile
+                // Absolute exact center of a standard 44px tile
                 ox = 22; oy = 22; 
                 gRect = document.getElementById('grid').getBoundingClientRect();
 
                 if(el.parentElement.classList.contains('cell')) {
                     placedTiles = placedTiles.filter(p => p.el !== el);
                     el.classList.remove('on-board'); 
-                    el.style.width = '44px'; el.style.height = '44px';
                 }
                 
+                // Force size reset
+                el.style.width = '44px'; el.style.height = '44px';
                 activeTile = el; 
                 document.body.appendChild(el);
                 
-                // Jump to finger immediately
+                // ⚡ JUMP DIRECTLY TO FINGER COORDINATES
                 currentX = t.clientX - ox; 
                 currentY = t.clientY - oy;
                 targetX = currentX; 
                 targetY = currentY;
                 
                 el.classList.add('dragging');
+                
+                // ⚡ FORCE IMMEDIATE GPU RENDER SO THERE IS ZERO DELAY
+                el.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) scale(${rules?.visuals?.dragScale || 1.25})`;
+
                 if(e.cancelable) e.preventDefault(); 
                 e.stopPropagation();
             };
@@ -149,7 +157,6 @@
                         el.style.transform = 'none'; 
                         placedTiles.push({el, index: idx});
                         
-                        // WILDCARD Check
                         if (el.dataset.raw === '?') { 
                             wildTarget = el; 
                             document.getElementById('wildcard-modal').style.display = 'flex'; 
@@ -175,7 +182,6 @@
             if(!placedTiles.length) return;
             placedTiles.sort((a,b)=>a.index-b.index);
             
-            // Auto-detect direction
             const isH = placedTiles.length > 1 ? (placedTiles[1].index - placedTiles[0].index === 1) : true;
             const step = isH ? 1 : board.cols;
             
@@ -189,7 +195,6 @@
                 let total = 0, mult = 1;
                 full.forEach(idx => {
                     const v = parseInt(getTileAt(idx).dataset.value) || 0;
-                    // Check if tile was JUST placed to apply bonuses
                     const isNew = placedTiles.find(p => p.index === idx);
                     const bonusType = (isNew && layout[idx]) ? layout[idx].c : null;
                     const bonus = (bonusType && scoring?.multipliers) ? scoring.multipliers[bonusType] : null;
@@ -214,7 +219,6 @@
                 setTimeout(refillRack, 600);
             } else {
                 showFeedback(full[full.length-1], '❌', 'feedback-node invalid-x');
-                // Auto-recall on invalid word
                 setTimeout(recallTiles, 800);
             }
         }

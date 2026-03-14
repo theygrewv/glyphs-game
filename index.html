@@ -5,142 +5,90 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Glyphs</title>
     <style>
-        :root {
-            --bg: #0a0a0c;
-            --text: #ffffff;
-            --gold: #D4AF37;
-            --obsidian: linear-gradient(145deg, #222222, #0d0d0d);
-        }
+        :root { --bg: #0a0a0c; --text: #ffffff; --gold: #D4AF37; --obsidian: linear-gradient(145deg, #222222, #0d0d0d); }
+        body { margin: 0; padding: 20px 0; background: var(--bg); color: var(--text); font-family: sans-serif; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; overflow-y: auto; overflow-x: hidden; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"); }
+        .hero { text-align: center; margin-bottom: 30px; margin-top: 20px; animation: fadeUp 1s ease-out; }
+        .title { font-size: 3.5rem; font-weight: 900; letter-spacing: 8px; margin: 0; background: linear-gradient(to bottom, #fff, #888); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 10px 30px rgba(255,255,255,0.1); }
+        .subtitle { font-size: 0.8rem; font-weight: 700; color: var(--gold); letter-spacing: 4px; margin-top: -5px; opacity: 0.8; }
+        .menu-container { display: flex; flex-direction: column; gap: 15px; width: 85vw; max-width: 350px; animation: fadeUp 1.2s ease-out; }
+        .menu-btn { background: var(--obsidian); color: var(--text); border: 1px solid #333; padding: 16px 20px; border-radius: 12px; font-size: 0.9rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: transform 0.1s; box-shadow: inset 2px 2px 4px rgba(255,255,255,0.05), inset -3px -3px 6px rgba(0,0,0,0.8), 0 4px 15px rgba(0,0,0,0.5); }
+        .menu-btn:active { transform: scale(0.96); box-shadow: inset 2px 2px 8px rgba(0,0,0,0.9); }
+        .menu-btn.primary { color: var(--gold); border-color: var(--gold); box-shadow: inset 0 0 10px rgba(212, 175, 55, 0.2), inset -3px -3px 6px rgba(0,0,0,0.8), 0 4px 15px rgba(0,0,0,0.5); }
         
-        body {
-            margin: 0;
-            padding: 0;
-            background: var(--bg);
-            color: var(--text);
-            font-family: sans-serif;
-            height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
-        }
+        .saves-container { margin-top: 35px; width: 85vw; max-width: 350px; animation: fadeUp 1.4s ease-out; }
+        .saves-title { font-size: 0.75rem; color: var(--gold); letter-spacing: 2px; margin-bottom: 12px; text-transform: uppercase; font-weight: 900; border-bottom: 1px solid #333; padding-bottom: 5px; opacity: 0.9; }
+        .save-card { background: rgba(20, 20, 22, 0.85); border: 1px solid #333; border-radius: 10px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; backdrop-filter: blur(10px); transition: transform 0.1s, border-color 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .save-card:active { transform: scale(0.97); border-color: var(--gold); }
+        .save-info { display: flex; flex-direction: column; gap: 6px; }
+        .save-opp { font-weight: 900; font-size: 0.95rem; color: #fff; letter-spacing: 0.5px; }
+        .save-time { font-size: 0.65rem; color: #888; text-transform: uppercase; font-weight: 700; }
+        .save-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+        .save-status { font-size: 0.6rem; font-weight: 900; padding: 4px 8px; border-radius: 6px; letter-spacing: 1px; }
+        .status-active { background: var(--gold); color: #000; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3); }
+        .status-wait { background: #222; color: #888; border: 1px solid #444; }
+        .save-score { font-family: monospace; font-size: 1rem; color: #ddd; font-weight: bold; }
 
-        .hero {
-            text-align: center;
-            margin-bottom: 60px;
-            animation: fadeUp 1s ease-out;
-        }
-
-        .title {
-            font-size: 4rem;
-            font-weight: 900;
-            letter-spacing: 8px;
-            margin: 0;
-            background: linear-gradient(to bottom, #fff, #888);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 10px 30px rgba(255,255,255,0.1);
-        }
-
-        .subtitle {
-            font-size: 0.8rem;
-            font-weight: 700;
-            color: var(--gold);
-            letter-spacing: 4px;
-            margin-top: -5px;
-            opacity: 0.8;
-        }
-
-        .menu-container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            width: 80vw;
-            max-width: 300px;
-            animation: fadeUp 1.2s ease-out;
-        }
-
-        .menu-btn {
-            background: var(--obsidian);
-            color: var(--text);
-            border: 1px solid #333;
-            padding: 18px 24px;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 900;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: transform 0.1s, box-shadow 0.2s, border-color 0.2s;
-            box-shadow: inset 2px 2px 4px rgba(255,255,255,0.05), inset -3px -3px 6px rgba(0,0,0,0.8), 0 4px 15px rgba(0,0,0,0.5);
-        }
-
-        .menu-btn:active {
-            transform: scale(0.96);
-            box-shadow: inset 2px 2px 8px rgba(0,0,0,0.9);
-        }
-
-        .menu-btn.primary {
-            color: var(--gold);
-            border-color: var(--gold);
-            box-shadow: inset 0 0 10px rgba(212, 175, 55, 0.2), inset -3px -3px 6px rgba(0,0,0,0.8), 0 4px 15px rgba(0,0,0,0.5);
-        }
-
-        @keyframes fadeUp {
-            0% { opacity: 0; transform: translateY(20px); }
-            100% { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeUp { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
-
     <div class="hero">
         <h1 class="title" id="home-title">...</h1>
         <div class="subtitle" id="home-subtitle">...</div>
     </div>
-
-    <div class="menu-container" id="menu-container">
-        </div>
+    <div class="menu-container" id="menu-container"></div>
+    <div class="saves-container" id="saves-container">
+        <div class="saves-title" id="saves-title">...</div>
+        <div id="saves-list"></div>
+    </div>
 
     <script>
         async function buildHome() {
             try {
-                const res = await fetch('./lexicon/home.json');
-                const data = await res.json();
+                const [homeRes, savesRes] = await Promise.all([
+                    fetch('./lexicon/home.json'),
+                    fetch('./lexicon/saves.json')
+                ]);
+                const homeData = await homeRes.json();
+                const savesData = await savesRes.json();
                 
-                // Inject Branding
-                document.getElementById('home-title').innerText = data.branding.title;
-                document.getElementById('home-subtitle').innerText = data.branding.subtitle;
+                document.getElementById('home-title').innerText = homeData.branding.title;
+                document.getElementById('home-subtitle').innerText = homeData.branding.subtitle;
 
-                // Inject Menu
-                const container = document.getElementById('menu-container');
-                container.innerHTML = ''; // clear loading state
-                
-                data.menu.forEach(item => {
+                const menuContainer = document.getElementById('menu-container');
+                menuContainer.innerHTML = '';
+                homeData.menu.forEach(item => {
                     const btn = document.createElement('button');
                     btn.className = `menu-btn ${item.style}`;
-                    btn.id = item.id;
                     btn.innerText = item.text;
-                    
-                    btn.onclick = () => {
-                        if (item.route !== '#') {
-                            window.location.href = item.route;
-                        } else {
-                            // Placeholder for settings modal later
-                            btn.innerText = "COMING SOON";
-                            setTimeout(() => btn.innerText = item.text, 1000);
-                        }
-                    };
-                    
-                    container.appendChild(btn);
+                    btn.onclick = () => window.location.href = item.route === '#' ? '#' : item.route;
+                    menuContainer.appendChild(btn);
                 });
-            } catch(e) {
-                console.error("Failed to load home lexicon", e);
-            }
-        }
 
+                document.getElementById('saves-title').innerText = savesData.listTitle;
+                const savesList = document.getElementById('saves-list');
+                savesList.innerHTML = '';
+                savesData.sessions.forEach(session => {
+                    const card = document.createElement('div');
+                    card.className = 'save-card';
+                    card.onclick = () => window.location.href = 'game.html'; // Tapping a card loads the game
+
+                    const statusClass = session.isActive ? 'status-active' : 'status-wait';
+                    
+                    card.innerHTML = `
+                        <div class="save-info">
+                            <div class="save-opp">${session.opponent}</div>
+                            <div class="save-time">${session.time}</div>
+                        </div>
+                        <div class="save-meta">
+                            <div class="save-status ${statusClass}">${session.status}</div>
+                            <div class="save-score">${session.score}</div>
+                        </div>
+                    `;
+                    savesList.appendChild(card);
+                });
+            } catch(e) { console.error("Lexicon Error", e); }
+        }
         buildHome();
     </script>
 </body>

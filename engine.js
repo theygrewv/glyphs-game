@@ -284,7 +284,6 @@ function showFeedback(idx, txt, cls) {
     document.getElementById('grid').appendChild(node);
 }
 
-/* ⚡ WILDCARD VALUE ABSORPTION LOGIC */
 function setupWildcard() {
     if(!wildLex) return;
     document.getElementById('wild-title').innerText = wildLex.ui?.title || "SELECT GLYPH";
@@ -293,21 +292,16 @@ function setupWildcard() {
         const b = document.createElement('div'); b.className = 'wild-btn'; b.innerText = l;
         b.onclick = () => {
             if(!wildTarget) return;
-            
-            // Look up the standard point value for the chosen letter
             const stdTile = tiles.distribution.find(t => t.l === l);
             const letterValue = stdTile ? stdTile.v : 0;
-            
             wildTarget.dataset.letter = l; 
-            wildTarget.dataset.value = letterValue; // Inject value here
-            
+            wildTarget.dataset.value = letterValue; 
             wildTarget.querySelector('span').innerText = l;
-            wildTarget.querySelector('.val').innerText = letterValue; // Display value here
+            wildTarget.querySelector('.val').innerText = letterValue;
             wildTarget.classList.add('wild');
-            
             document.getElementById('wildcard-modal').style.display = 'none';
             wildTarget = null;
-            updateLiveScore(); // Immediately recalculate the score with the new value
+            updateLiveScore(); 
         };
         container.appendChild(b);
     });
@@ -338,16 +332,35 @@ function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = 
 function buildUI() { if(!ui) return; const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; if(btn.action === 'shuffleRack') b.onclick = shuffleRack; if(btn.action === 'recallTiles') b.onclick = recallTiles; if(btn.action === 'toggleTheme') b.onclick = () => { currentMode = currentMode === 'dark' ? 'light' : 'dark'; applyLexiconTheme(); }; if(btn.action === 'playWord') b.onclick = handlePlayWord; ctrl.appendChild(b); }); }
 function initBag() { if(!tiles) return; tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }
 
-/* ⚡ WILDCARD RACK INITIALIZATION LOGIC */
+/* ⚡ THE VOWEL GUARANTEE INJECTION */
 function refillRack() { 
     const r = document.getElementById('rack'); 
-    const cur = r.querySelectorAll('.tile').length; 
-    for(let i=0; i<(7-cur) && bag.length; i++) { 
-        const data = bag.pop(); 
+    let currentTiles = Array.from(r.querySelectorAll('.tile'));
+    let needed = 7 - currentTiles.length;
+    if (needed <= 0 || bag.length === 0) return;
+
+    const isVowel = (l) => ['A','E','I','O','U','?'].includes(l);
+    let hasVowel = currentTiles.some(t => isVowel(t.dataset.raw));
+
+    for (let i = 0; i < needed && bag.length > 0; i++) {
+        let data;
+        
+        // If this is the LAST tile we're drawing and we still have ZERO vowels, force a vowel draw!
+        if (!hasVowel && i === needed - 1) {
+            const vIdx = bag.findIndex(t => isVowel(t.l));
+            if (vIdx !== -1) {
+                data = bag.splice(vIdx, 1)[0]; // Rip the vowel out of the bag
+            } else {
+                data = bag.pop(); // Failsafe: Bag has no vowels left
+            }
+        } else {
+            data = bag.pop(); // Standard draw
+        }
+
+        if (isVowel(data.l)) hasVowel = true;
+
         const t = document.createElement('div'); 
         t.className = 'tile'; 
-        
-        // If it's the wildcard '?', display '?' in the point-value corner too
         const displayVal = data.l === '?' ? '?' : data.v;
         
         t.innerHTML = `<span>${data.l}</span><span class="val">${displayVal}</span>`; 

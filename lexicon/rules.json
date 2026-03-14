@@ -1,11 +1,13 @@
 {
   "placement": {
-    "logic": "global-sensor",
-    "visualSnapping": true,
-    "hitSlop": 30
+    "logic": "strict-grid-math",
+    "hitSlop": 30,
+    "snapToCenter": true,
+    "recalibrateOnStart": true
   },
   "constraints": {
     "requireEmpty": true,
-    "snapToCenter": true
+    "allowOverlap": false,
+    "lockOnInvalid": false
   }
 }

@@ -17,7 +17,6 @@ async function startEngine() {
         
         if(playRules && playRules.validation.dictionaryUrl) {
             const dText = await fetch(playRules.validation.dictionaryUrl).then(r => r.text());
-            // Safe ghost-character regex import
             dictionary = new Set(dText.toUpperCase().match(/[A-Z]+/g));
         }
         
@@ -49,7 +48,7 @@ function makeDraggable(el) {
         if(el.parentElement.classList.contains('cell')) {
             placedTiles = placedTiles.filter(p => p.el !== el);
             el.classList.remove('on-board'); 
-            updateLiveScore(); // Recalculate if picked up
+            updateLiveScore();
         }
         
         activeTile = el; 
@@ -100,7 +99,7 @@ function makeDraggable(el) {
                 el.style.transform = 'none'; 
                 placedTiles.push({el, index: idx});
                 
-                updateLiveScore(); // Generate live preview badge
+                updateLiveScore();
                 
                 if (el.dataset.raw === '?') { 
                     wildTarget = el; 
@@ -129,7 +128,6 @@ function updateLiveScore() {
     
     placedTiles.sort((a,b)=>a.index-b.index);
     
-    // Auto-detect direction even for single tile placements
     let isH = true;
     if (placedTiles.length > 1) {
         isH = (placedTiles[1].index - placedTiles[0].index === 1);
@@ -160,14 +158,15 @@ function updateLiveScore() {
         finalScore += scoring.bonuses.bingo;
     }
 
-    const lastActiveIdx = placedTiles[placedTiles.length - 1].index;
-    const lastTileEl = getTileAt(lastActiveIdx);
+    // ⚡ THE FIX: Always attach to the final cell of the FULL word sequence
+    const lastWordIdx = full[full.length - 1];
+    const lastCellEl = document.querySelector(`.cell[data-index="${lastWordIdx}"]`);
     
-    if (lastTileEl) {
+    if (lastCellEl) {
         const badge = document.createElement('div');
         badge.className = 'live-score-badge';
         badge.innerText = finalScore;
-        lastTileEl.appendChild(badge);
+        lastCellEl.appendChild(badge);
     }
 }
 
@@ -258,7 +257,7 @@ function handlePlayWord() {
         
         placedTiles.forEach(p => p.el.classList.add('fixed'));
         placedTiles = [];
-        updateLiveScore(); // Clears the live preview
+        updateLiveScore();
         setTimeout(refillRack, 600);
     } else {
         showFeedback(full[full.length-1], '❌ NO WORD', 'feedback-node invalid-x');
@@ -293,7 +292,7 @@ function setupWildcard() {
             wildTarget.classList.add('wild');
             document.getElementById('wildcard-modal').style.display = 'none';
             wildTarget = null;
-            updateLiveScore(); // Update preview after picking wildcard
+            updateLiveScore();
         };
         container.appendChild(b);
     });
@@ -315,8 +314,6 @@ function applyLexiconTheme() {
     .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } 
     .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } 
     #total-score { color: var(--gold); } 
-    
-    /* ⚡ THE LIVE HOLOGRAPHIC SCORE BADGE */
     .live-score-badge { position: absolute; bottom: -6px; right: -6px; background: var(--dl); color: #000; font-size: 0.6rem; font-weight: 900; padding: 2px 6px; border-radius: 6px; z-index: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.8); pointer-events: none; border: 1px solid #000; }
     `;
     document.head.appendChild(style);

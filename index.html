@@ -133,17 +133,34 @@
             window.addEventListener('touchend', end, { passive: false });
         }
 
+        // RESTORED THE CSS INJECTION BLOCK
         function applyLexiconTheme() {
-            if (!theme || !theme.modes[currentMode]) return;
+            if (!theme || !theme.modes[currentMode] || !board) return;
             const m = theme.modes[currentMode];
             const root = document.documentElement.style;
             Object.keys(m.colors).forEach(k => root.setProperty(`--${k}`, m.colors[k]));
+            
+            const style = document.getElementById('lexicon-styles') || document.createElement("style");
+            style.id = 'lexicon-styles';
+            style.innerText = `
+                .grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap || '2px'}; border: 1px solid var(--gridLine); } 
+                .cell { background: var(--obsidian); backdrop-filter: blur(${m.effects.blur}); -webkit-backdrop-filter: blur(${m.effects.blur}); box-shadow: ${m.effects.bevel}; } 
+                .dl { color: var(--dl); box-shadow: inset 0 0 ${m.effects.glow} var(--dl); } 
+                .tl { color: var(--tl); box-shadow: inset 0 0 ${m.effects.glow} var(--tl); } 
+                .dw { color: var(--dw); box-shadow: inset 0 0 ${m.effects.glow} var(--dw); } 
+                .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } 
+                .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } 
+                #total-score { color: var(--gold); }
+            `;
+            document.head.appendChild(style);
         }
+
         function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = ''; if(!board) return; for(let i=0; i<board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout && layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
         function buildUI() { if(!ui) return; const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; ctrl.appendChild(b); }); }
         function initBag() { if(!tiles) return; tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }
         function refillRack() { const r = document.getElementById('rack'); const cur = r.querySelectorAll('.tile').length; for(let i=0; i<(7-cur) && bag.length; i++) { const data = bag.pop(); const t = document.createElement('div'); t.className = 'tile'; t.innerHTML = `<span>${data.l}</span><span class="val">${data.v}</span>`; t.dataset.letter = data.l; r.appendChild(t); makeDraggable(t); } }
         function buildHeader() { document.getElementById('game-header').innerHTML = `<div id="total-score" style="font-size: 2.2rem; font-weight: 900; color:var(--gold)">000</div>`; }
+        
         startEngine();
     </script>
 </body>

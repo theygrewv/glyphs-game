@@ -8,9 +8,12 @@
         :root { --bg: #000; --text: #fff; }
         body { background: var(--bg); color: var(--text); margin: 0; font-family: sans-serif; height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 10px 0; -webkit-user-select: none; }
         .grid { display: grid; width: 92vw; max-width: 400px; aspect-ratio: 1/1; z-index: 5; position: relative; }
-        .cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; }
+        .cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; transition: background 0.2s; }
+        .cell.hover { background: rgba(255, 255, 255, 0.15) !important; box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.3); }
+        
         #rack { display: flex; justify-content: center; align-items: center; gap: 8px; width: 92vw; max-width: 400px; height: 80px; margin-bottom: 75px; z-index: 10; }
         .tile { width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; }
+        
         .tile.dragging { position: fixed !important; z-index: 5000; pointer-events: none; transform: scale(1.3); opacity: 0.95; }
         .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; }
         .tile.fixed { filter: brightness(0.8); pointer-events: none; }
@@ -47,7 +50,7 @@
                 const dText = await fetch(playRules.validation.dictionaryUrl).then(r => r.text());
                 dictionary = new Set(dText.toUpperCase().split('\n'));
                 applyLexiconTheme(); buildHeader(); buildGrid(); buildUI(); initBag(); refillRack();
-                console.log("Nuclear Precision Engine Online 🤙🏽");
+                console.log("Global Sensor Active 🤙🏽");
             } catch (e) { console.error(e); }
         }
 
@@ -58,8 +61,6 @@
                 const t = e.touches ? e.touches[0] : e;
                 const r = el.getBoundingClientRect();
                 ox = t.clientX - r.left; oy = t.clientY - r.top;
-                
-                // Recalibrate Grid position at the START of every drag
                 gridRect = document.getElementById('grid').getBoundingClientRect();
 
                 if(el.parentElement.classList.contains('cell')) {
@@ -67,8 +68,6 @@
                     el.classList.remove('on-board');
                 }
                 el.classList.add('dragging');
-                el.style.left = `${t.clientX - ox}px`;
-                el.style.top = `${t.clientY - oy}px`;
                 if(e.cancelable) e.preventDefault();
             };
 
@@ -77,47 +76,57 @@
                 const t = e.touches ? e.touches[0] : e;
                 el.style.left = `${t.clientX - ox}px`;
                 el.style.top = `${t.clientY - oy}px`;
-                if(e.cancelable) e.preventDefault();
+
+                // Visual Hover Feedback
+                document.querySelectorAll('.cell.hover').forEach(c => c.classList.remove('hover'));
+                const targetIdx = calculateGridIndex(t.clientX, t.clientY, gridRect);
+                if(targetIdx !== null) {
+                    const targetCell = document.querySelector(`.cell[data-index="${targetIdx}"]`);
+                    if(targetCell && !targetCell.querySelector('.tile')) targetCell.classList.add('hover');
+                }
             };
 
             const end = (e) => {
                 if(!el.classList.contains('dragging')) return;
                 el.classList.remove('dragging');
+                document.querySelectorAll('.cell.hover').forEach(c => c.classList.remove('hover'));
                 
-                const r = el.getBoundingClientRect();
-                const centerX = r.left + (r.width / 2);
-                const centerY = r.top + (r.height / 2);
+                const t = e.changedTouches ? e.changedTouches[0] : e;
+                const targetIdx = calculateGridIndex(t.clientX, t.clientY, gridRect);
 
-                // Forgiving Algebra Check
-                const slop = rules.placement.hitSlop || 20;
-                if (centerX >= (gridRect.left - slop) && centerX <= (gridRect.right + slop) &&
-                    centerY >= (gridRect.top - slop) && centerY <= (gridRect.bottom + slop)) {
-                    
-                    const col = Math.floor((centerX - gridRect.left) / (gridRect.width / board.cols));
-                    const row = Math.floor((centerY - gridRect.top) / (gridRect.height / (board.size / board.cols)));
-                    const idx = (row * board.cols) + col;
-                    
-                    const target = document.querySelector(`.cell[data-index="${idx}"]`);
+                if (targetIdx !== null) {
+                    const target = document.querySelector(`.cell[data-index="${targetIdx}"]`);
                     if (target && !target.querySelector('.tile')) {
                         target.appendChild(el);
                         el.classList.add('on-board');
                         el.style.left = '0'; el.style.top = '0'; el.style.position = 'absolute';
-                        placedTiles.push({el, index: idx});
+                        placedTiles.push({el, index: targetIdx});
                         return;
                     }
                 }
                 
-                // Snap Back
                 document.getElementById('rack').appendChild(el);
                 el.style.left = 'auto'; el.style.top = 'auto'; el.style.position = 'relative';
             };
+
+            function calculateGridIndex(x, y, g) {
+                const slop = rules.placement.hitSlop || 30;
+                if (x >= (g.left - slop) && x <= (g.right + slop) &&
+                    y >= (g.top - slop) && y <= (g.bottom + slop)) {
+                    const col = Math.floor((x - g.left) / (g.width / board.cols));
+                    const row = Math.floor((y - g.top) / (g.height / (board.size / board.cols)));
+                    const idx = (row * board.cols) + col;
+                    return (idx >= 0 && idx < board.size) ? idx : null;
+                }
+                return null;
+            }
 
             el.addEventListener('touchstart', start, { passive: false });
             window.addEventListener('touchmove', move, { passive: false });
             window.addEventListener('touchend', end, { passive: false });
         }
 
-        /* --- THEME, UI, & GRID (DATA-DRIVEN) --- */
+        /* --- THEME, UI, GRID --- */
         function applyLexiconTheme() {
             const m = theme.modes[currentMode];
             const root = document.documentElement.style;

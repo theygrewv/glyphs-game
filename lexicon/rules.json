@@ -5,9 +5,13 @@
     "snapToCenter": true,
     "recalibrateOnStart": true
   },
+  "mobility": {
+    "allowBoardToBoard": true,
+    "allowReturnToRack": true,
+    "liftScale": 1.15
+  },
   "constraints": {
     "requireEmpty": true,
-    "allowOverlap": false,
-    "lockOnInvalid": false
+    "allowOverlap": false
   }
 }

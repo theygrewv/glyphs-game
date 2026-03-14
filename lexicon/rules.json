@@ -7,12 +7,11 @@
   "visuals": {
     "dragScale": 1.25,
     "hoverScale": 1.4,
-    "liftZ": 99999,
-    "useHardwareAcceleration": true
+    "lerpAmount": 0.2,
+    "liftZ": 999999
   },
   "mobility": {
     "allowBoardToBoard": true,
-    "interactiveOnBoard": true,
-    "lockAxis": false
+    "interactiveOnBoard": true
   }
 }

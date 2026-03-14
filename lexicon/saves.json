@@ -1,0 +1,21 @@
+{
+  "listTitle": "ACTIVE SESSIONS",
+  "sessions": [
+    {
+      "id": "game_001",
+      "opponent": "Engine (Level 5)",
+      "status": "YOUR TURN",
+      "score": "142 - 98",
+      "time": "2 hrs ago",
+      "isActive": true
+    },
+    {
+      "id": "game_002",
+      "opponent": "Player Two",
+      "status": "WAITING...",
+      "score": "45 - 50",
+      "time": "1 day ago",
+      "isActive": false
+    }
+  ]
+}

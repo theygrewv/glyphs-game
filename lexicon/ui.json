@@ -1,8 +1,9 @@
 {
   "buttons": [
-    {"text": "Recall", "class": "btn secondary", "action": "recallTiles"},
-    {"text": "Shuffle", "class": "btn secondary", "action": "shuffleRack"},
-    {"text": "Play", "class": "btn primary", "action": "playWord"},
-    {"text": "Mode", "class": "btn", "action": "toggleTheme"}
+    { "text": "◀", "class": "btn", "action": "goHome" },
+    { "text": "RECALL", "class": "btn", "action": "recallTiles" },
+    { "text": "SHUFFLE", "class": "btn", "action": "shuffleRack" },
+    { "text": "MODE", "class": "btn", "action": "toggleTheme" },
+    { "text": "PLAY", "class": "btn primary", "action": "playWord" }
   ]
 }

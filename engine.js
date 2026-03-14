@@ -214,6 +214,33 @@ function validatePlacement() {
     }
 }
 
+/* ⚡ PERIMETER ADJACENCY ALGORITHM */
+function updateClusterOutlines() {
+    document.querySelectorAll('.tile.fixed').forEach(t => {
+        const idx = parseInt(t.parentElement.dataset.index);
+        const r = Math.floor(idx / board.cols);
+        const c = idx % board.cols;
+        
+        // Check if there is a fixed tile touching each side
+        const hasT = r > 0 && getTileAt(idx - board.cols)?.classList.contains('fixed');
+        const hasB = r < (board.size/board.cols - 1) && getTileAt(idx + board.cols)?.classList.contains('fixed');
+        const hasL = c > 0 && getTileAt(idx - 1)?.classList.contains('fixed');
+        const hasR = c < (board.cols - 1) && getTileAt(idx + 1)?.classList.contains('fixed');
+        
+        // Toggle edge borders
+        t.classList.toggle('edge-t', !hasT);
+        t.classList.toggle('edge-b', !hasB);
+        t.classList.toggle('edge-l', !hasL);
+        t.classList.toggle('edge-r', !hasR);
+        
+        // Dynamically apply corner radii so the outline curves perfectly
+        t.classList.toggle('corner-tl', !hasT && !hasL);
+        t.classList.toggle('corner-tr', !hasT && !hasR);
+        t.classList.toggle('corner-bl', !hasB && !hasL);
+        t.classList.toggle('corner-br', !hasB && !hasR);
+    });
+}
+
 function handlePlayWord() {
     document.querySelectorAll('.feedback-node').forEach(n => n.remove());
     if(!placedTiles.length) return;
@@ -265,6 +292,10 @@ function handlePlayWord() {
         placedTiles.forEach(p => p.el.classList.add('fixed'));
         placedTiles = [];
         updateLiveScore();
+        
+        // ⚡ RUN THE OUTLINE ALGORITHM AFTER LOCKING THE WORD
+        updateClusterOutlines();
+        
         setTimeout(refillRack, 600);
     } else {
         showFeedback(full[full.length-1], '❌ NO WORD', 'feedback-node invalid-x');
@@ -324,6 +355,17 @@ function applyLexiconTheme() {
     .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } 
     #total-score { color: var(--gold); } 
     .live-score-badge { position: absolute; background: var(--dl); color: #000; font-size: 0.65rem; font-weight: 900; padding: 2px 6px; border-radius: 6px; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.8); pointer-events: none; border: 1px solid #000; transition: top 0.2s, left 0.2s; }
+    
+    /* ⚡ THE DYNAMIC PERIMETER CSS */
+    .tile.fixed { box-sizing: border-box; transition: border-radius 0.2s ease, border 0.2s ease; }
+    .tile.fixed.edge-t { border-top: 2px solid var(--gold); }
+    .tile.fixed.edge-r { border-right: 2px solid var(--gold); }
+    .tile.fixed.edge-b { border-bottom: 2px solid var(--gold); }
+    .tile.fixed.edge-l { border-left: 2px solid var(--gold); }
+    .tile.fixed.corner-tl { border-top-left-radius: 8px !important; }
+    .tile.fixed.corner-tr { border-top-right-radius: 8px !important; }
+    .tile.fixed.corner-bl { border-bottom-left-radius: 8px !important; }
+    .tile.fixed.corner-br { border-bottom-right-radius: 8px !important; }
     `;
     document.head.appendChild(style);
 }
@@ -332,7 +374,6 @@ function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = 
 function buildUI() { if(!ui) return; const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; if(btn.action === 'shuffleRack') b.onclick = shuffleRack; if(btn.action === 'recallTiles') b.onclick = recallTiles; if(btn.action === 'toggleTheme') b.onclick = () => { currentMode = currentMode === 'dark' ? 'light' : 'dark'; applyLexiconTheme(); }; if(btn.action === 'playWord') b.onclick = handlePlayWord; ctrl.appendChild(b); }); }
 function initBag() { if(!tiles) return; tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }
 
-/* ⚡ THE VOWEL GUARANTEE INJECTION */
 function refillRack() { 
     const r = document.getElementById('rack'); 
     let currentTiles = Array.from(r.querySelectorAll('.tile'));
@@ -344,17 +385,15 @@ function refillRack() {
 
     for (let i = 0; i < needed && bag.length > 0; i++) {
         let data;
-        
-        // If this is the LAST tile we're drawing and we still have ZERO vowels, force a vowel draw!
         if (!hasVowel && i === needed - 1) {
             const vIdx = bag.findIndex(t => isVowel(t.l));
             if (vIdx !== -1) {
-                data = bag.splice(vIdx, 1)[0]; // Rip the vowel out of the bag
+                data = bag.splice(vIdx, 1)[0]; 
             } else {
-                data = bag.pop(); // Failsafe: Bag has no vowels left
+                data = bag.pop(); 
             }
         } else {
-            data = bag.pop(); // Standard draw
+            data = bag.pop(); 
         }
 
         if (isVowel(data.l)) hasVowel = true;

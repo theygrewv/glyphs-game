@@ -7,20 +7,28 @@
     <style id="dynamic-styles">
         :root { --bg: #000; --text: #fff; }
         body { background: var(--bg); color: var(--text); margin: 0; font-family: sans-serif; height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 10px 0; -webkit-user-select: none; }
-        .grid { display: grid; width: 92vw; max-width: 400px; aspect-ratio: 1/1; z-index: 5; position: relative; }
-        .cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; transition: background 0.2s, transform 0.1s; }
-        .cell.hover { background: rgba(255, 255, 255, 0.2) !important; transform: scale(1.05); }
+        .grid { display: grid; width: 92vw; max-width: 400px; aspect-ratio: 1/1; z-index: 50; position: relative; perspective: 1000px; }
+        .cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; transition: background 0.2s; }
+        .cell.hover { background: rgba(255, 255, 255, 0.2) !important; }
         #rack { display: flex; justify-content: center; align-items: center; gap: 8px; width: 92vw; max-width: 400px; height: 80px; margin-bottom: 75px; z-index: 10; }
         
-        /* High Priority Tile Layering */
         .tile { 
             width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; 
             display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; 
-            transition: transform 0.1s; pointer-events: auto !important; z-index: 100;
+            pointer-events: auto !important; z-index: 100;
+            will-change: transform; /* Prepares GPU for the lift */
         }
         
-        .tile.dragging { position: fixed !important; z-index: 9999 !important; pointer-events: none; opacity: 0.95; }
+        /* Force Hardware Layering */
+        .tile.dragging { 
+            position: fixed !important; 
+            left: 0 !important; top: 0 !important;
+            z-index: 999999 !important; 
+            pointer-events: none; 
+            opacity: 0.95; 
+            transition: transform 0.05s linear; /* Ultra fast follow */
+        }
         .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; z-index: 200; }
         .tile.fixed { filter: brightness(0.8); pointer-events: none !important; }
         
@@ -58,7 +66,7 @@
                 const dText = await fetch(playRules.validation.dictionaryUrl).then(r => r.text());
                 dictionary = new Set(dText.toUpperCase().split('\n'));
                 applyLexiconTheme(); buildHeader(); buildGrid(); buildUI(); initBag(); refillRack();
-                console.log("Omni-Draggable Logic Engaged 🤙🏽");
+                console.log("Hardware Planes Synced 🤙🏽");
             } catch (e) { console.error(e); }
         }
 
@@ -71,12 +79,11 @@
                 const touch = e.touches ? e.touches[0] : e;
                 const r = el.getBoundingClientRect();
                 
-                // Get absolute grab point
-                ox = touch.pageX - (r.left + window.pageXOffset); 
-                oy = touch.pageY - (r.top + window.pageYOffset);
+                // Grab offset relative to viewport
+                ox = touch.clientX - r.left; 
+                oy = touch.clientY - r.top;
                 gRect = document.getElementById('grid').getBoundingClientRect();
 
-                // If lifting from board, reset its identity
                 if(el.parentElement.classList.contains('cell')) {
                     placedTiles = placedTiles.filter(p => p.el !== el);
                     el.classList.remove('on-board');
@@ -84,38 +91,40 @@
                 }
                 
                 el.classList.add('dragging');
-                el.style.transform = `scale(${v.dragScale})`;
+                // Use translate3d to stay in the hardware plane
+                el.style.transform = `translate3d(${touch.clientX - ox}px, ${touch.clientY - oy}px, 0) scale(${v.dragScale})`;
                 if(e.cancelable) e.preventDefault();
-                e.stopPropagation(); // Stop board from interfering
+                e.stopPropagation();
             };
 
             const move = (e) => {
                 if(!el.classList.contains('dragging')) return;
                 const touch = e.touches ? e.touches[0] : e;
-                el.style.left = `${touch.pageX - ox}px`;
-                el.style.top = `${touch.pageY - oy}px`;
-
+                
                 document.querySelectorAll('.cell.hover').forEach(c => c.classList.remove('hover'));
-                const idx = calculateIndex(touch.pageX, touch.pageY, gRect);
+                const idx = calculateIndex(touch.clientX, touch.clientY, gRect);
+                let currentScale = v.dragScale;
+
                 if(idx !== null) {
                     const target = document.querySelector(`.cell[data-index="${idx}"]`);
                     if(target && !target.querySelector('.tile')) {
                         target.classList.add('hover');
-                        el.style.transform = `scale(${v.hoverScale})`;
+                        currentScale = v.hoverScale;
                     }
-                } else {
-                    el.style.transform = `scale(${v.dragScale})`;
                 }
+
+                // Update position via GPU-accelerated translate3d
+                el.style.transform = `translate3d(${touch.clientX - ox}px, ${touch.clientY - oy}px, 0) scale(${currentScale})`;
             };
 
             const end = (e) => {
                 if(!el.classList.contains('dragging')) return;
                 el.classList.remove('dragging');
-                el.style.transform = 'scale(1)';
+                el.style.transform = 'translate3d(0,0,0) scale(1)';
                 document.querySelectorAll('.cell.hover').forEach(c => c.classList.remove('hover'));
                 
                 const touch = e.changedTouches ? e.changedTouches[0] : e;
-                const idx = calculateIndex(touch.pageX, touch.pageY, gRect);
+                const idx = calculateIndex(touch.clientX, touch.clientY, gRect);
 
                 if (idx !== null) {
                     const target = document.querySelector(`.cell[data-index="${idx}"]`);
@@ -131,14 +140,14 @@
                 document.getElementById('rack').appendChild(el);
                 el.style.width = '44px'; el.style.height = '44px';
                 el.style.left = 'auto'; el.style.top = 'auto'; el.style.position = 'relative';
+                el.style.transform = 'none';
             };
 
-            function calculateIndex(px, py, g) {
-                const x = px - window.pageXOffset; const y = py - window.pageYOffset;
+            function calculateIndex(cx, cy, g) {
                 const slop = rules.placement.hitSlop || 35;
-                if (x >= (g.left - slop) && x <= (g.right + slop) && y >= (g.top - slop) && y <= (g.bottom + slop)) {
-                    const col = Math.floor((x - g.left) / (g.width / board.cols));
-                    const row = Math.floor((y - g.top) / (g.height / (board.size / board.cols)));
+                if (cx >= (g.left - slop) && cx <= (g.right + slop) && cy >= (g.top - slop) && cy <= (g.bottom + slop)) {
+                    const col = Math.floor((cx - g.left) / (g.width / board.cols));
+                    const row = Math.floor((cy - g.top) / (g.height / (board.size / board.cols)));
                     const i = (row * board.cols) + col;
                     return (i >= 0 && i < board.size) ? i : null;
                 }

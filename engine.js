@@ -17,6 +17,7 @@ async function startEngine() {
         
         if(playRules && playRules.validation.dictionaryUrl) {
             const dText = await fetch(playRules.validation.dictionaryUrl).then(r => r.text());
+            // Safe ghost-character regex import
             dictionary = new Set(dText.toUpperCase().match(/[A-Z]+/g));
         }
         
@@ -48,6 +49,7 @@ function makeDraggable(el) {
         if(el.parentElement.classList.contains('cell')) {
             placedTiles = placedTiles.filter(p => p.el !== el);
             el.classList.remove('on-board'); 
+            updateLiveScore(); // Recalculate if picked up
         }
         
         activeTile = el; 
@@ -98,6 +100,8 @@ function makeDraggable(el) {
                 el.style.transform = 'none'; 
                 placedTiles.push({el, index: idx});
                 
+                updateLiveScore(); // Generate live preview badge
+                
                 if (el.dataset.raw === '?') { 
                     wildTarget = el; 
                     document.getElementById('wildcard-modal').style.display = 'flex'; 
@@ -110,11 +114,61 @@ function makeDraggable(el) {
         el.style.width = `${physics.tile.size}px`; el.style.height = `${physics.tile.size}px`;
         el.style.position = 'relative'; el.style.left = 'auto'; el.style.top = 'auto'; 
         el.style.transform = 'none';
+        updateLiveScore();
     };
 
     el.addEventListener('touchstart', start, { passive: false });
     window.addEventListener('touchmove', move, { passive: false });
     window.addEventListener('touchend', end, { passive: false });
+}
+
+/* ⚡ LIVE SCORE PREVIEW ENGINE */
+function updateLiveScore() {
+    document.querySelectorAll('.live-score-badge').forEach(e => e.remove());
+    if (!placedTiles.length) return;
+    
+    placedTiles.sort((a,b)=>a.index-b.index);
+    
+    // Auto-detect direction even for single tile placements
+    let isH = true;
+    if (placedTiles.length > 1) {
+        isH = (placedTiles[1].index - placedTiles[0].index === 1);
+    } else {
+        const idx = placedTiles[0].index;
+        if (getTileAt(idx - board.cols) || getTileAt(idx + board.cols)) isH = false;
+    }
+    const step = isH ? 1 : board.cols;
+    
+    let full = [], curr = placedTiles[0].index;
+    while(curr >= 0 && getTileAt(curr-step)) curr -= step;
+    while(curr < board.size && getTileAt(curr)) { full.push(curr); curr += step; }
+    
+    let total = 0, mult = 1;
+    full.forEach(idx => {
+        const v = parseInt(getTileAt(idx).dataset.value) || 0;
+        const isNew = placedTiles.find(p => p.index === idx);
+        const bonusType = (isNew && layout[idx]) ? layout[idx].c : null;
+        const bonus = (bonusType && scoring?.multipliers) ? scoring.multipliers[bonusType] : null;
+
+        if(bonus && bonus.type === "letter") total += (v * bonus.value);
+        else total += v;
+        if(bonus && bonus.type === "word") mult *= bonus.value;
+    });
+    
+    let finalScore = total * mult;
+    if(scoring?.bonuses && placedTiles.length >= scoring.bonuses.bingoThreshold) {
+        finalScore += scoring.bonuses.bingo;
+    }
+
+    const lastActiveIdx = placedTiles[placedTiles.length - 1].index;
+    const lastTileEl = getTileAt(lastActiveIdx);
+    
+    if (lastTileEl) {
+        const badge = document.createElement('div');
+        badge.className = 'live-score-badge';
+        badge.innerText = finalScore;
+        lastTileEl.appendChild(badge);
+    }
 }
 
 function validatePlacement() {
@@ -159,13 +213,19 @@ function handlePlayWord() {
     if(!placedTiles.length) return;
 
     if (!validatePlacement()) {
-        showFeedback(placedTiles[placedTiles.length-1].index, '❌ INVALID PLACEMENT', 'feedback-node invalid-x');
+        showFeedback(placedTiles[placedTiles.length-1].index, '❌ INVALID', 'feedback-node invalid-x');
         setTimeout(recallTiles, 1200);
         return;
     }
     
     placedTiles.sort((a,b)=>a.index-b.index);
-    const isH = placedTiles.length > 1 ? (placedTiles[1].index - placedTiles[0].index === 1) : true;
+    let isH = true;
+    if (placedTiles.length > 1) {
+        isH = (placedTiles[1].index - placedTiles[0].index === 1);
+    } else {
+        const idx = placedTiles[0].index;
+        if (getTileAt(idx - board.cols) || getTileAt(idx + board.cols)) isH = false;
+    }
     const step = isH ? 1 : board.cols;
     
     let full = [], curr = placedTiles[0].index;
@@ -184,7 +244,6 @@ function handlePlayWord() {
 
             if(bonus && bonus.type === "letter") total += (v * bonus.value);
             else total += v;
-            
             if(bonus && bonus.type === "word") mult *= bonus.value;
         });
         
@@ -197,25 +256,12 @@ function handlePlayWord() {
         totalScore += finalScore;
         document.getElementById('total-score').innerText = totalScore.toString().padStart(3, '0');
         
-        // ⚡ THE PERSISTENT BADGE STAMPER
-        const lastTileEl = getTileAt(full[full.length-1]);
-        if (lastTileEl) {
-            const badge = document.createElement('div');
-            badge.className = 'word-score-badge';
-            badge.innerText = finalScore;
-            
-            // If another word ended here, slide the new badge to the left
-            const existing = lastTileEl.querySelectorAll('.word-score-badge').length;
-            if(existing > 0) badge.style.right = `${-6 + (existing * 22)}px`;
-            
-            lastTileEl.appendChild(badge);
-        }
-
         placedTiles.forEach(p => p.el.classList.add('fixed'));
         placedTiles = [];
+        updateLiveScore(); // Clears the live preview
         setTimeout(refillRack, 600);
     } else {
-        showFeedback(full[full.length-1], '❌ NOT IN DICTIONARY', 'feedback-node invalid-x');
+        showFeedback(full[full.length-1], '❌ NO WORD', 'feedback-node invalid-x');
         setTimeout(recallTiles, 1200);
     }
 }
@@ -247,6 +293,7 @@ function setupWildcard() {
             wildTarget.classList.add('wild');
             document.getElementById('wildcard-modal').style.display = 'none';
             wildTarget = null;
+            updateLiveScore(); // Update preview after picking wildcard
         };
         container.appendChild(b);
     });
@@ -269,8 +316,8 @@ function applyLexiconTheme() {
     .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } 
     #total-score { color: var(--gold); } 
     
-    /* ⚡ THE NEW SCORE BADGE STYLING */
-    .word-score-badge { position: absolute; bottom: -6px; right: -6px; background: var(--gold); color: #000; font-size: 0.55rem; font-weight: 900; padding: 2px 4px; border-radius: 4px; z-index: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none; border: 1px solid #000; }
+    /* ⚡ THE LIVE HOLOGRAPHIC SCORE BADGE */
+    .live-score-badge { position: absolute; bottom: -6px; right: -6px; background: var(--dl); color: #000; font-size: 0.6rem; font-weight: 900; padding: 2px 6px; border-radius: 6px; z-index: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.8); pointer-events: none; border: 1px solid #000; }
     `;
     document.head.appendChild(style);
 }
@@ -283,6 +330,6 @@ function buildHeader() { document.getElementById('game-header').innerHTML = `<di
 function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
 
 function shuffleRack() { const rack = document.getElementById('rack'); const t = Array.from(rack.querySelectorAll('.tile')); t.sort(() => Math.random() - 0.5); t.forEach(tile => { tile.style.transform = 'scale(0.8)'; rack.appendChild(tile); setTimeout(() => tile.style.transform = 'none', 50); }); }
-function recallTiles() { const rack = document.getElementById('rack'); placedTiles.forEach(p => { p.el.classList.remove('on-board'); p.el.style.width = '44px'; p.el.style.height = '44px'; p.el.style.margin = '0'; p.el.style.left = 'auto'; p.el.style.top = 'auto'; p.el.style.position = 'relative'; p.el.style.transform = 'none'; rack.appendChild(p.el); }); placedTiles = []; }
+function recallTiles() { const rack = document.getElementById('rack'); placedTiles.forEach(p => { p.el.classList.remove('on-board'); p.el.style.width = '44px'; p.el.style.height = '44px'; p.el.style.margin = '0'; p.el.style.left = 'auto'; p.el.style.top = 'auto'; p.el.style.position = 'relative'; p.el.style.transform = 'none'; rack.appendChild(p.el); }); placedTiles = []; updateLiveScore(); }
 
 startEngine();

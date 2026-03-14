@@ -7,6 +7,10 @@
     <style id="dynamic-styles">
         :root { --bg: #000; --text: #fff; }
         body { background: var(--bg); color: var(--text); margin: 0; font-family: sans-serif; height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 10px 0; -webkit-user-select: none; }
+        
+        /* ⚡ THE ABSOLUTE DRAG PLANE */
+        #drag-layer { position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; pointer-events: none; z-index: 1000000; }
+        
         .grid { display: grid; width: 96vw; max-width: 400px; aspect-ratio: 1/1; z-index: 50; position: relative; }
         .cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; transition: background 0.2s; font-size: 0.65rem; font-weight: bold; }
         .cell.hover { background: rgba(255, 255, 255, 0.25) !important; box-shadow: inset 0 0 15px rgba(255,255,255,0.5); }
@@ -17,22 +21,15 @@
             display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; 
             pointer-events: auto !important; touch-action: none; z-index: 100; transform-origin: center; 
-            transition: box-shadow 0.15s, filter 0.15s;
         }
         
-        /* ⚡ THE FIX: Force absolute 0,0 origin so math is flawless */
         .tile.dragging { 
-            position: fixed !important; 
-            left: 0 !important; 
-            top: 0 !important; 
-            margin: 0 !important; 
-            z-index: 1000000 !important; 
-            pointer-events: none; 
-            opacity: 0.98; 
-            box-shadow: 0 15px 25px rgba(0,0,0,0.6); 
+            position: absolute !important; /* Absolute to the drag-layer */
+            left: 0 !important; top: 0 !important; margin: 0 !important; 
+            pointer-events: none; opacity: 0.98; box-shadow: 0 15px 30px rgba(0,0,0,0.7); 
         }
         
-        .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; margin: 0 !important; z-index: 500 !important; box-shadow: none; font-size: 18px; }
+        .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; margin: 0 !important; box-shadow: none; font-size: 18px; z-index: 500 !important; }
         .tile.fixed { filter: brightness(0.85); pointer-events: none !important; }
         .tile.wild { color: var(--gold); }
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; opacity: 0.7; }
@@ -53,6 +50,8 @@
     </style>
 </head>
 <body>
+    <div id="drag-layer"></div>
+    
     <div id="wildcard-modal"><div class="modal-title" id="wild-title">SELECT GLYPH</div><div class="wild-grid" id="wild-grid"></div></div>
     <header id="game-header"></header>
     <div class="grid" id="grid"></div>
@@ -60,7 +59,7 @@
     <div id="rack"></div>
 
     <script>
-        let layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring, wildLex;
+        let layout, board, tiles, theme, ui, rules, playRules, scoring, wildLex, physics;
         let dictionary = new Set(), bag = [], placedTiles = [], totalScore = 0, currentMode = 'dark';
         let activeTile = null, targetX = 0, targetY = 0, currentX = 0, currentY = 0, wildTarget = null;
 
@@ -71,10 +70,10 @@
                     fetchJson('./lexicon/layout.json'), fetchJson('./lexicon/board.json'),
                     fetchJson('./lexicon/tiles.json'), fetchJson('./lexicon/theme.json'),
                     fetchJson('./lexicon/ui.json'), fetchJson('./lexicon/rules.json'),
-                    fetchJson('./lexicon/play.json'), fetchJson('./lexicon/draw.json'),
-                    fetchJson('./lexicon/scoring.json'), fetchJson('./lexicon/wildcard.json')
+                    fetchJson('./lexicon/play.json'), fetchJson('./lexicon/scoring.json'), 
+                    fetchJson('./lexicon/wildcard.json'), fetchJson('./lexicon/physics.json')
                 ]);
-                [layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring, wildLex] = res;
+                [layout, board, tiles, theme, ui, rules, playRules, scoring, wildLex, physics] = res;
                 currentMode = theme?.active || 'dark';
                 
                 if(playRules && playRules.validation.dictionaryUrl) {
@@ -87,24 +86,29 @@
             } catch (e) { console.error("Engine Error:", e); }
         }
 
+        /* --- FLAWLESS PHYSICS LOOP --- */
         function updateMotion() {
-            if (activeTile && rules?.visuals) {
-                const lerp = rules.visuals.lerpAmount || 0.25;
+            if (activeTile && physics) {
+                // Lerp makes it glide buttery smooth
+                const lerp = physics.motion.lerp || 0.4;
                 currentX += (targetX - currentX) * lerp;
                 currentY += (targetY - currentY) * lerp;
-                activeTile.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) scale(${rules.visuals.dragScale || 1.25})`;
+                activeTile.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) scale(${physics.motion.dragScale})`;
             }
             requestAnimationFrame(updateMotion);
         }
 
         function makeDraggable(el) {
             let ox, oy, gRect;
+            const dragLayer = document.getElementById('drag-layer');
+
             const start = (e) => {
-                if(el.classList.contains('fixed')) return;
+                if(el.classList.contains('fixed') || !physics) return;
                 const t = e.touches ? e.touches[0] : e;
                 
-                // Snap directly to the center of the 44px tile
-                ox = 22; oy = 22; 
+                // MATH: Read exact anchor origin from Physics Lexicon (22, 22)
+                ox = physics.tile.centerOffset; 
+                oy = physics.tile.centerOffset; 
                 gRect = document.getElementById('grid').getBoundingClientRect();
 
                 if(el.parentElement.classList.contains('cell')) {
@@ -114,31 +118,33 @@
                 
                 activeTile = el; 
                 
-                // ⚡ Force strict styling reset to kill ghost offsets
-                el.style.width = '44px'; 
-                el.style.height = '44px';
+                // ⚡ Force strict styling to kill ALL layout constraints
+                el.style.width = `${physics.tile.size}px`; 
+                el.style.height = `${physics.tile.size}px`;
+                el.style.position = 'absolute';
                 el.style.margin = '0px';
                 el.style.left = '0px';
                 el.style.top = '0px';
                 
-                document.body.appendChild(el);
+                // Teleport to the Vacuum Layer
+                dragLayer.appendChild(el);
                 el.classList.add('dragging');
                 
-                // Set coordinates
+                // Set mathematically perfect touch alignment relative to viewport 0,0
                 currentX = t.clientX - ox; 
                 currentY = t.clientY - oy;
                 targetX = currentX; 
                 targetY = currentY;
                 
-                // ⚡ Force instant GPU render
-                el.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) scale(${rules?.visuals?.dragScale || 1.25})`;
+                // Force immediate GPU render
+                el.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) scale(${physics.motion.dragScale})`;
 
                 if(e.cancelable) e.preventDefault(); 
                 e.stopPropagation();
             };
 
             const move = (e) => {
-                if(!activeTile || activeTile !== el) return;
+                if(!activeTile || activeTile !== el || !physics) return;
                 const t = e.touches ? e.touches[0] : e;
                 targetX = t.clientX - ox; 
                 targetY = t.clientY - oy;
@@ -154,10 +160,10 @@
             };
 
             const end = (e) => {
-                if(!activeTile || activeTile !== el) return;
+                if(!activeTile || activeTile !== el || !physics) return;
                 el.classList.remove('dragging'); activeTile = null;
                 const t = e.changedTouches ? e.changedTouches[0] : e;
-                const slop = rules?.placement?.hitSlop || 40;
+                const slop = physics.bounds.hitSlop;
 
                 if (t.clientX >= (gRect.left - slop) && t.clientX <= (gRect.right + slop) && t.clientY >= (gRect.top - slop) && t.clientY <= (gRect.bottom + slop)) {
                     const col = Math.floor((t.clientX - gRect.left) / (gRect.width / board.cols));
@@ -166,10 +172,10 @@
                     const target = document.querySelector(`.cell[data-index="${idx}"]`);
                     
                     if (target && !target.querySelector('.tile')) {
+                        // Drop into Grid
                         target.appendChild(el); el.classList.add('on-board');
                         el.style.width = '100%'; el.style.height = '100%';
-                        el.style.margin = '0';
-                        el.style.left = '0'; el.style.top = '0'; el.style.position = 'absolute';
+                        el.style.position = 'absolute'; el.style.left = '0'; el.style.top = '0';
                         el.style.transform = 'none'; 
                         placedTiles.push({el, index: idx});
                         
@@ -181,10 +187,10 @@
                     }
                 }
                 
+                // Snap back to Rack
                 document.getElementById('rack').appendChild(el); 
-                el.style.width = '44px'; el.style.height = '44px';
-                el.style.margin = '0';
-                el.style.left = 'auto'; el.style.top = 'auto'; el.style.position = 'relative'; 
+                el.style.width = `${physics.tile.size}px`; el.style.height = `${physics.tile.size}px`;
+                el.style.position = 'relative'; el.style.left = 'auto'; el.style.top = 'auto'; 
                 el.style.transform = 'none';
             };
 

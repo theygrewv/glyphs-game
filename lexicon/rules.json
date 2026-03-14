@@ -1,9 +1,9 @@
 {
   "placement": {
-    "logic": "grid-math",
-    "hitSlop": 15,
-    "snapBuffer": 0.2,
-    "enforcePlayableOnly": true
+    "logic": "force-algebraic",
+    "hitSlop": 20,
+    "recalibrateOnDrop": true,
+    "snapBuffer": 0.5
   },
   "constraints": {
     "allowOverlap": false,

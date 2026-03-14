@@ -8,27 +8,14 @@
         :root { --bg: #000; --text: #fff; }
         body { background: var(--bg); color: var(--text); margin: 0; font-family: sans-serif; height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 10px 0; -webkit-user-select: none; }
         
-        /* ⚡ THE ABSOLUTE DRAG PLANE */
         #drag-layer { position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; pointer-events: none; z-index: 1000000; }
-        
         .grid { display: grid; width: 96vw; max-width: 400px; aspect-ratio: 1/1; z-index: 50; position: relative; }
         .cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; transition: background 0.2s; font-size: 0.65rem; font-weight: bold; }
         .cell.hover { background: rgba(255, 255, 255, 0.25) !important; box-shadow: inset 0 0 15px rgba(255,255,255,0.5); }
         #rack { display: flex; justify-content: center; align-items: center; gap: 6px; width: 96vw; max-width: 400px; height: 80px; margin-bottom: 75px; z-index: 10; }
         
-        .tile { 
-            width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; 
-            display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; 
-            pointer-events: auto !important; touch-action: none; z-index: 100; transform-origin: center; 
-        }
-        
-        .tile.dragging { 
-            position: absolute !important; /* Absolute to the drag-layer */
-            left: 0 !important; top: 0 !important; margin: 0 !important; 
-            pointer-events: none; opacity: 0.98; box-shadow: 0 15px 30px rgba(0,0,0,0.7); 
-        }
-        
+        .tile { width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; pointer-events: auto !important; touch-action: none; z-index: 100; transform-origin: center; }
+        .tile.dragging { position: absolute !important; left: 0 !important; top: 0 !important; margin: 0 !important; pointer-events: none; opacity: 0.98; box-shadow: 0 15px 30px rgba(0,0,0,0.7); }
         .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; margin: 0 !important; box-shadow: none; font-size: 18px; z-index: 500 !important; }
         .tile.fixed { filter: brightness(0.85); pointer-events: none !important; }
         .tile.wild { color: var(--gold); }
@@ -39,7 +26,7 @@
         .wild-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; padding: 20px; background: #111; border-radius: 15px; border: 1px solid #333; }
         .wild-btn { width: 45px; height: 45px; background: #fff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 900; border-radius: 8px; font-size: 1.2rem; }
         
-        .feedback-node { position: absolute; z-index: 5000; font-weight: 900; color: var(--gold); text-shadow: 0 0 10px var(--gold); font-size: 1.5rem; pointer-events: none; animation: floatUp 1.2s ease-out forwards; }
+        .feedback-node { position: absolute; z-index: 5000; font-weight: 900; color: var(--gold); text-shadow: 0 0 10px var(--gold); font-size: 1.2rem; pointer-events: none; animation: floatUp 1.2s ease-out forwards; white-space: nowrap; }
         .invalid-x { color: #FF0000; text-shadow: 0 0 10px #FF0000; }
         @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-40px) scale(1.2); opacity: 0; } }
 
@@ -51,7 +38,6 @@
 </head>
 <body>
     <div id="drag-layer"></div>
-    
     <div id="wildcard-modal"><div class="modal-title" id="wild-title">SELECT GLYPH</div><div class="wild-grid" id="wild-grid"></div></div>
     <header id="game-header"></header>
     <div class="grid" id="grid"></div>
@@ -86,10 +72,8 @@
             } catch (e) { console.error("Engine Error:", e); }
         }
 
-        /* --- FLAWLESS PHYSICS LOOP --- */
         function updateMotion() {
             if (activeTile && physics) {
-                // Lerp makes it glide buttery smooth
                 const lerp = physics.motion.lerp || 0.4;
                 currentX += (targetX - currentX) * lerp;
                 currentY += (targetY - currentY) * lerp;
@@ -97,7 +81,6 @@
             }
             requestAnimationFrame(updateMotion);
         }
-
         function makeDraggable(el) {
             let ox, oy, gRect;
             const dragLayer = document.getElementById('drag-layer');
@@ -105,10 +88,7 @@
             const start = (e) => {
                 if(el.classList.contains('fixed') || !physics) return;
                 const t = e.touches ? e.touches[0] : e;
-                
-                // MATH: Read exact anchor origin from Physics Lexicon (22, 22)
-                ox = physics.tile.centerOffset; 
-                oy = physics.tile.centerOffset; 
+                ox = physics.tile.centerOffset; oy = physics.tile.centerOffset; 
                 gRect = document.getElementById('grid').getBoundingClientRect();
 
                 if(el.parentElement.classList.contains('cell')) {
@@ -117,37 +97,23 @@
                 }
                 
                 activeTile = el; 
+                el.style.width = `${physics.tile.size}px`; el.style.height = `${physics.tile.size}px`;
+                el.style.position = 'absolute'; el.style.margin = '0px'; el.style.left = '0px'; el.style.top = '0px';
                 
-                // ⚡ Force strict styling to kill ALL layout constraints
-                el.style.width = `${physics.tile.size}px`; 
-                el.style.height = `${physics.tile.size}px`;
-                el.style.position = 'absolute';
-                el.style.margin = '0px';
-                el.style.left = '0px';
-                el.style.top = '0px';
-                
-                // Teleport to the Vacuum Layer
                 dragLayer.appendChild(el);
                 el.classList.add('dragging');
                 
-                // Set mathematically perfect touch alignment relative to viewport 0,0
-                currentX = t.clientX - ox; 
-                currentY = t.clientY - oy;
-                targetX = currentX; 
-                targetY = currentY;
-                
-                // Force immediate GPU render
+                currentX = t.clientX - ox; currentY = t.clientY - oy;
+                targetX = currentX; targetY = currentY;
                 el.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) scale(${physics.motion.dragScale})`;
 
-                if(e.cancelable) e.preventDefault(); 
-                e.stopPropagation();
+                if(e.cancelable) e.preventDefault(); e.stopPropagation();
             };
 
             const move = (e) => {
                 if(!activeTile || activeTile !== el || !physics) return;
                 const t = e.touches ? e.touches[0] : e;
-                targetX = t.clientX - ox; 
-                targetY = t.clientY - oy;
+                targetX = t.clientX - ox; targetY = t.clientY - oy;
                 
                 document.querySelectorAll('.cell.hover').forEach(c => c.classList.remove('hover'));
                 const col = Math.floor((t.clientX - gRect.left) / (gRect.width / board.cols));
@@ -172,7 +138,6 @@
                     const target = document.querySelector(`.cell[data-index="${idx}"]`);
                     
                     if (target && !target.querySelector('.tile')) {
-                        // Drop into Grid
                         target.appendChild(el); el.classList.add('on-board');
                         el.style.width = '100%'; el.style.height = '100%';
                         el.style.position = 'absolute'; el.style.left = '0'; el.style.top = '0';
@@ -187,7 +152,6 @@
                     }
                 }
                 
-                // Snap back to Rack
                 document.getElementById('rack').appendChild(el); 
                 el.style.width = `${physics.tile.size}px`; el.style.height = `${physics.tile.size}px`;
                 el.style.position = 'relative'; el.style.left = 'auto'; el.style.top = 'auto'; 
@@ -198,107 +162,3 @@
             window.addEventListener('touchmove', move, { passive: false });
             window.addEventListener('touchend', end, { passive: false });
         }
-
-        /* --- SCORING & LOGIC --- */
-        function handlePlayWord() {
-            document.querySelectorAll('.feedback-node').forEach(n => n.remove());
-            if(!placedTiles.length) return;
-            placedTiles.sort((a,b)=>a.index-b.index);
-            
-            const isH = placedTiles.length > 1 ? (placedTiles[1].index - placedTiles[0].index === 1) : true;
-            const step = isH ? 1 : board.cols;
-            
-            let full = [], curr = placedTiles[0].index;
-            while(curr >= 0 && getTileAt(curr-step)) curr -= step;
-            while(curr < board.size && getTileAt(curr)) { full.push(curr); curr += step; }
-            
-            const word = full.map(idx => getTileAt(idx).dataset.letter).join('');
-            
-            if(dictionary.has(word)) {
-                let total = 0, mult = 1;
-                full.forEach(idx => {
-                    const v = parseInt(getTileAt(idx).dataset.value) || 0;
-                    const isNew = placedTiles.find(p => p.index === idx);
-                    const bonusType = (isNew && layout[idx]) ? layout[idx].c : null;
-                    const bonus = (bonusType && scoring?.multipliers) ? scoring.multipliers[bonusType] : null;
-
-                    if(bonus && bonus.type === "letter") total += (v * bonus.value);
-                    else total += v;
-                    
-                    if(bonus && bonus.type === "word") mult *= bonus.value;
-                });
-                
-                let finalScore = total * mult;
-                if(scoring?.bonuses && placedTiles.length >= scoring.bonuses.bingoThreshold) {
-                    finalScore += scoring.bonuses.bingo;
-                }
-
-                showFeedback(full[full.length-1], `+${finalScore}`, 'feedback-node');
-                totalScore += finalScore;
-                document.getElementById('total-score').innerText = totalScore.toString().padStart(3, '0');
-                
-                placedTiles.forEach(p => p.el.classList.add('fixed'));
-                placedTiles = [];
-                setTimeout(refillRack, 600);
-            } else {
-                showFeedback(full[full.length-1], '❌', 'feedback-node invalid-x');
-                setTimeout(recallTiles, 800);
-            }
-        }
-
-        function showFeedback(idx, txt, cls) {
-            const cell = document.querySelector(`.cell[data-index="${idx}"]`);
-            if(!cell) return;
-            const rect = cell.getBoundingClientRect();
-            const gRect = document.getElementById('grid').getBoundingClientRect();
-            const node = document.createElement('div');
-            node.className = cls; node.innerText = txt;
-            node.style.left = `${(rect.left - gRect.left) + (rect.width/2) - 15}px`;
-            node.style.top = `${(rect.top - gRect.top) - 20}px`;
-            document.getElementById('grid').appendChild(node);
-        }
-
-        /* --- UI & HELPERS --- */
-        function setupWildcard() {
-            if(!wildLex) return;
-            document.getElementById('wild-title').innerText = wildLex.ui?.title || "SELECT GLYPH";
-            const container = document.getElementById('wild-grid');
-            wildLex.options.split('').forEach(l => {
-                const b = document.createElement('div'); b.className = 'wild-btn'; b.innerText = l;
-                b.onclick = () => {
-                    if(!wildTarget) return;
-                    wildTarget.dataset.letter = l; 
-                    wildTarget.dataset.value = wildLex.mechanics.pointValue || 0;
-                    wildTarget.querySelector('span').innerText = l;
-                    wildTarget.querySelector('.val').innerText = wildTarget.dataset.value;
-                    wildTarget.classList.add('wild');
-                    document.getElementById('wildcard-modal').style.display = 'none';
-                    wildTarget = null;
-                };
-                container.appendChild(b);
-            });
-        }
-        function applyLexiconTheme() {
-            if (!theme || !theme.modes[currentMode] || !board) return;
-            const m = theme.modes[currentMode];
-            const root = document.documentElement.style;
-            Object.keys(m.colors).forEach(k => root.setProperty(`--${k}`, m.colors[k]));
-            const style = document.getElementById('lexicon-styles') || document.createElement("style");
-            style.id = 'lexicon-styles';
-            style.innerText = `.grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap || '2px'}; border: 1px solid var(--gridLine); } .cell { background: var(--obsidian); backdrop-filter: blur(${m.effects.blur}); -webkit-backdrop-filter: blur(${m.effects.blur}); box-shadow: ${m.effects.bevel}; } .dl { color: var(--dl); box-shadow: inset 0 0 ${m.effects.glow} var(--dl); } .tl { color: var(--tl); box-shadow: inset 0 0 ${m.effects.glow} var(--tl); } .dw { color: var(--dw); box-shadow: inset 0 0 ${m.effects.glow} var(--dw); } .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } #total-score { color: var(--gold); }`;
-            document.head.appendChild(style);
-        }
-        function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = ''; if(!board) return; for(let i=0; i<board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout && layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
-        function buildUI() { if(!ui) return; const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; if(btn.action === 'shuffleRack') b.onclick = shuffleRack; if(btn.action === 'recallTiles') b.onclick = recallTiles; if(btn.action === 'toggleTheme') b.onclick = () => { currentMode = currentMode === 'dark' ? 'light' : 'dark'; applyLexiconTheme(); }; if(btn.action === 'playWord') b.onclick = handlePlayWord; ctrl.appendChild(b); }); }
-        function initBag() { if(!tiles) return; tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }
-        function refillRack() { const r = document.getElementById('rack'); const cur = r.querySelectorAll('.tile').length; for(let i=0; i<(7-cur) && bag.length; i++) { const data = bag.pop(); const t = document.createElement('div'); t.className = 'tile'; t.innerHTML = `<span>${data.l}</span><span class="val">${data.v}</span>`; t.dataset.letter = data.l; t.dataset.raw = data.l; t.dataset.value = data.v; r.appendChild(t); makeDraggable(t); } }
-        function buildHeader() { document.getElementById('game-header').innerHTML = `<div id="total-score" style="font-size: 2.2rem; font-weight: 900; color:var(--gold)">000</div>`; }
-        function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
-        
-        function shuffleRack() { const rack = document.getElementById('rack'); const t = Array.from(rack.querySelectorAll('.tile')); t.sort(() => Math.random() - 0.5); t.forEach(tile => { tile.style.transform = 'scale(0.8)'; rack.appendChild(tile); setTimeout(() => tile.style.transform = 'none', 50); }); }
-        function recallTiles() { const rack = document.getElementById('rack'); placedTiles.forEach(p => { p.el.classList.remove('on-board'); p.el.style.width = '44px'; p.el.style.height = '44px'; p.el.style.margin = '0'; p.el.style.left = 'auto'; p.el.style.top = 'auto'; p.el.style.position = 'relative'; p.el.style.transform = 'none'; rack.appendChild(p.el); }); placedTiles = []; }
-        
-        startEngine();
-    </script>
-</body>
-</html>

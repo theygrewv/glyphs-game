@@ -9,13 +9,12 @@
         body { background: var(--bg); color: var(--text); margin: 0; font-family: sans-serif; height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 10px 0; -webkit-user-select: none; }
         .grid { display: grid; width: 92vw; max-width: 400px; aspect-ratio: 1/1; z-index: 5; position: relative; }
         .cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; }
-        #rack { display: flex; justify-content: center; align-items: center; gap: 8px; width: 92vw; max-width: 400px; height: 80px; margin-bottom: 60px; z-index: 10; }
+        #rack { display: flex; justify-content: center; align-items: center; gap: 8px; width: 92vw; max-width: 400px; height: 80px; margin-bottom: 70px; z-index: 10; }
         .tile { width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; }
-        .tile.dragging { position: fixed !important; z-index: 5000; pointer-events: none; transform: scale(1.2); opacity: 0.9; }
+        .tile.dragging { position: fixed !important; z-index: 5000; pointer-events: none; transform: scale(1.3); opacity: 0.95; }
         .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; }
         .tile.fixed { filter: brightness(0.8); pointer-events: none; }
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; opacity: 0.6; }
-        .controls { display: flex; gap: 8px; z-index: 10; }
         .btn { background: #222; color: #fff; border: none; padding: 12px 18px; border-radius: 30px; font-weight: 900; font-size: 0.7rem; text-transform: uppercase; }
         .primary { background: #fff; color: #000; }
     </style>
@@ -48,6 +47,7 @@
                 const dText = await fetch(playRules.validation.dictionaryUrl).then(r => r.text());
                 dictionary = new Set(dText.toUpperCase().split('\n'));
                 applyLexiconTheme(); buildHeader(); buildGrid(); buildUI(); initBag(); refillRack();
+                console.log("Recon Engine Online 🤙🏽");
             } catch (e) { console.error(e); }
         }
 
@@ -79,13 +79,16 @@
             const end = (e) => {
                 if(!el.classList.contains('dragging')) return;
                 el.classList.remove('dragging');
+                
                 const r = el.getBoundingClientRect();
                 const centerX = r.left + r.width / 2;
                 const centerY = r.top + r.height / 2;
+
+                // RECON: Get grid position right NOW
                 const g = document.getElementById('grid').getBoundingClientRect();
-                
-                // MATH RESOLVER: Buffering the bounds check
-                const slop = rules.placement.hitSlop || 10;
+                const slop = rules.placement.hitSlop || 20;
+
+                // Grid Math Resolver
                 if (centerX >= (g.left - slop) && centerX <= (g.right + slop) &&
                     centerY >= (g.top - slop) && centerY <= (g.bottom + slop)) {
                     
@@ -102,6 +105,8 @@
                         return;
                     }
                 }
+                
+                // Snap Back
                 document.getElementById('rack').appendChild(el);
                 el.style.left = 'auto'; el.style.top = 'auto'; el.style.position = 'relative';
             };
@@ -111,7 +116,7 @@
             window.addEventListener('touchend', end, { passive: false });
         }
 
-        /* --- UI & GRID (LEXICON DRIVEN) --- */
+        /* --- THEME & UI (DATA-DRIVEN) --- */
         function applyLexiconTheme() {
             const m = theme.modes[currentMode];
             const root = document.documentElement.style;
@@ -126,7 +131,7 @@
         function initBag() { tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }
         function refillRack() { const r = document.getElementById('rack'); const cur = r.querySelectorAll('.tile').length; for(let i=0; i<(7-cur) && bag.length; i++) { const data = bag.pop(); const t = document.createElement('div'); t.className = 'tile'; t.innerHTML = `<span>${data.l}</span><span class="val">${data.v}</span>`; t.dataset.letter = data.l; t.dataset.value = data.v; r.appendChild(t); makeDraggable(t); } }
         function buildHeader() { document.getElementById('game-header').innerHTML = `<div id="total-score" style="font-size: 2.2rem; font-weight: 900; color:var(--gold)">000</div>`; }
-        function handlePlayWord() { /* Scrabble Check */ if(!placedTiles.length) return; placedTiles.sort((a,b)=>a.index-b.index); const isH = Math.floor(placedTiles[0].index/board.cols) === Math.floor(placedTiles[placedTiles.length-1].index/board.cols); const step = isH ? 1 : board.cols; let full = [], curr = placedTiles[0].index; while(curr >= 0 && getTileAt(curr-step)) curr -= step; while(curr < board.size && getTileAt(curr)) { full.push(curr); curr += step; } const word = full.map(idx => getTileAt(idx).dataset.letter).join(''); if(dictionary.has(word)) { placedTiles.forEach(p => p.el.classList.add('fixed')); placedTiles = []; refillRack(); } }
+        function handlePlayWord() { if(!placedTiles.length) return; placedTiles.sort((a,b)=>a.index-b.index); const isH = Math.floor(placedTiles[0].index/board.cols) === Math.floor(placedTiles[placedTiles.length-1].index/board.cols); const step = isH ? 1 : board.cols; let full = [], curr = placedTiles[0].index; while(curr >= 0 && getTileAt(curr-step)) curr -= step; while(curr < board.size && getTileAt(curr)) { full.push(curr); curr += step; } const word = full.map(idx => getTileAt(idx).dataset.letter).join(''); if(dictionary.has(word)) { placedTiles.forEach(p => p.el.classList.add('fixed')); placedTiles = []; refillRack(); } }
         function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
         startEngine();
     </script>

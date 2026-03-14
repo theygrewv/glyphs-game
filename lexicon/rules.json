@@ -2,16 +2,15 @@
   "placement": {
     "logic": "strict-grid-math-page-coords",
     "hitSlop": 35,
-    "snapToCenter": true,
-    "recalibrateOnDrop": true
+    "snapToCenter": true
   },
   "visuals": {
     "dragScale": 1.25,
     "hoverScale": 1.4,
     "hoverTransitionMs": 150
   },
-  "constraints": {
-    "requireEmpty": true,
-    "allowOverlap": false
+  "mobility": {
+    "allowBoardToBoard": true,
+    "interactiveOnBoard": true
   }
 }

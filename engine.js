@@ -121,7 +121,6 @@ function makeDraggable(el) {
     window.addEventListener('touchend', end, { passive: false });
 }
 
-/* ⚡ DYNAMIC DIRECTIONAL LIVE SCORE PREVIEW ENGINE */
 function updateLiveScore() {
     document.querySelectorAll('.live-score-badge').forEach(e => e.remove());
     if (!placedTiles.length) return;
@@ -164,20 +163,14 @@ function updateLiveScore() {
     if (lastCellEl) {
         const rect = lastCellEl.getBoundingClientRect();
         const gRect = document.getElementById('grid').getBoundingClientRect();
-
         const badge = document.createElement('div');
         badge.className = 'live-score-badge';
         badge.innerText = finalScore;
-        
-        // Always stick to the right edge
         badge.style.left = `${(rect.left - gRect.left) + rect.width - 12}px`;
         
-        // ⚡ DIRECTIONAL ANCHOR LOGIC
         if (isH) {
-            // Horizontal -> Top Right
             badge.style.top = `${(rect.top - gRect.top) - 12}px`;
         } else {
-            // Vertical -> Bottom Right
             badge.style.top = `${(rect.top - gRect.top) + rect.height - 12}px`;
         }
         
@@ -193,7 +186,6 @@ function validatePlacement() {
     const c0 = placedTiles[0].index % board.cols;
     const sameRow = placedTiles.every(p => Math.floor(p.index / board.cols) === r0);
     const sameCol = placedTiles.every(p => p.index % board.cols === c0);
-    
     if (!sameRow && !sameCol) return false;
 
     placedTiles.sort((a,b) => a.index - b.index);
@@ -292,6 +284,7 @@ function showFeedback(idx, txt, cls) {
     document.getElementById('grid').appendChild(node);
 }
 
+/* ⚡ WILDCARD VALUE ABSORPTION LOGIC */
 function setupWildcard() {
     if(!wildLex) return;
     document.getElementById('wild-title').innerText = wildLex.ui?.title || "SELECT GLYPH";
@@ -300,14 +293,21 @@ function setupWildcard() {
         const b = document.createElement('div'); b.className = 'wild-btn'; b.innerText = l;
         b.onclick = () => {
             if(!wildTarget) return;
+            
+            // Look up the standard point value for the chosen letter
+            const stdTile = tiles.distribution.find(t => t.l === l);
+            const letterValue = stdTile ? stdTile.v : 0;
+            
             wildTarget.dataset.letter = l; 
-            wildTarget.dataset.value = wildLex.mechanics.pointValue || 0;
+            wildTarget.dataset.value = letterValue; // Inject value here
+            
             wildTarget.querySelector('span').innerText = l;
-            wildTarget.querySelector('.val').innerText = wildTarget.dataset.value;
+            wildTarget.querySelector('.val').innerText = letterValue; // Display value here
             wildTarget.classList.add('wild');
+            
             document.getElementById('wildcard-modal').style.display = 'none';
             wildTarget = null;
-            updateLiveScore();
+            updateLiveScore(); // Immediately recalculate the score with the new value
         };
         container.appendChild(b);
     });
@@ -337,7 +337,28 @@ function applyLexiconTheme() {
 function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = ''; if(!board) return; for(let i=0; i<board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout && layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
 function buildUI() { if(!ui) return; const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; if(btn.action === 'shuffleRack') b.onclick = shuffleRack; if(btn.action === 'recallTiles') b.onclick = recallTiles; if(btn.action === 'toggleTheme') b.onclick = () => { currentMode = currentMode === 'dark' ? 'light' : 'dark'; applyLexiconTheme(); }; if(btn.action === 'playWord') b.onclick = handlePlayWord; ctrl.appendChild(b); }); }
 function initBag() { if(!tiles) return; tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }
-function refillRack() { const r = document.getElementById('rack'); const cur = r.querySelectorAll('.tile').length; for(let i=0; i<(7-cur) && bag.length; i++) { const data = bag.pop(); const t = document.createElement('div'); t.className = 'tile'; t.innerHTML = `<span>${data.l}</span><span class="val">${data.v}</span>`; t.dataset.letter = data.l; t.dataset.raw = data.l; t.dataset.value = data.v; r.appendChild(t); makeDraggable(t); } }
+
+/* ⚡ WILDCARD RACK INITIALIZATION LOGIC */
+function refillRack() { 
+    const r = document.getElementById('rack'); 
+    const cur = r.querySelectorAll('.tile').length; 
+    for(let i=0; i<(7-cur) && bag.length; i++) { 
+        const data = bag.pop(); 
+        const t = document.createElement('div'); 
+        t.className = 'tile'; 
+        
+        // If it's the wildcard '?', display '?' in the point-value corner too
+        const displayVal = data.l === '?' ? '?' : data.v;
+        
+        t.innerHTML = `<span>${data.l}</span><span class="val">${displayVal}</span>`; 
+        t.dataset.letter = data.l; 
+        t.dataset.raw = data.l; 
+        t.dataset.value = data.v; 
+        r.appendChild(t); 
+        makeDraggable(t); 
+    } 
+}
+
 function buildHeader() { document.getElementById('game-header').innerHTML = `<div id="total-score" style="font-size: 2.2rem; font-weight: 900; color:var(--gold)">000</div>`; }
 function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
 

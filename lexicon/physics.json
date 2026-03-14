@@ -1,0 +1,15 @@
+{
+  "engine": "absolute-vacuum-plane",
+  "tile": {
+    "size": 44,
+    "centerOffset": 22
+  },
+  "bounds": {
+    "hitSlop": 40
+  },
+  "motion": {
+    "dragScale": 1.35,
+    "hoverScale": 1.5,
+    "lerp": 0.4
+  }
+}

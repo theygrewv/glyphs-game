@@ -3,8 +3,8 @@
   "buttons": [
     { "text": "PASS", "class": "btn", "action": "passTurn" },
     { "text": "RECALL", "class": "btn", "action": "recallTiles" },
+    { "text": "SWAP", "class": "btn", "action": "swapTiles" },
     { "text": "SHUFFLE", "class": "btn", "action": "shuffleRack" },
-    { "text": "MODE", "class": "btn", "action": "toggleTheme" },
     { "text": "PLAY", "class": "btn primary", "action": "playWord" }
   ]
 }

@@ -7,10 +7,11 @@
   "visuals": {
     "dragScale": 1.25,
     "hoverScale": 1.4,
-    "hoverTransitionMs": 150
+    "liftZ": 9999
   },
   "mobility": {
     "allowBoardToBoard": true,
-    "interactiveOnBoard": true
+    "interactiveOnBoard": true,
+    "enforceTouchPriority": true
   }
 }

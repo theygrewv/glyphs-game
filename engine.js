@@ -2,7 +2,6 @@ let layout, board, tiles, theme, ui, rules, playRules, scoring, wildLex, physics
 let dictionary = new Set(), bag = [], placedTiles = [], totalScore = 0, currentMode = 'dark';
 let activeTile = null, targetX = 0, targetY = 0, currentX = 0, currentY = 0, wildTarget = null;
 
-// ⚡ ROUTING AND SAVE ID LOGIC
 const urlParams = new URLSearchParams(window.location.search);
 let gameId = urlParams.get('id') || `game_${Date.now()}`;
 
@@ -30,17 +29,11 @@ async function startEngine() {
         }
         
         applyLexiconTheme(); buildHeader(); buildGrid(); buildUI(); setupWildcard();
-        
-        // ⚡ LOAD OR INITIALIZE
-        if (!loadGameState()) {
-            initBag(); refillRack();
-        }
-        
+        if (!loadGameState()) { initBag(); refillRack(); }
         requestAnimationFrame(updateMotion);
     } catch (e) { console.error("Engine Error:", e); }
 }
 
-/* ⚡ GAME STATE PERSISTENCE */
 function saveGameState() {
     const state = { id: gameId, score: totalScore, bag: bag, board: [], rack: [], opponent: 'Solo Session', status: 'IN PROGRESS', updatedAt: Date.now() };
     document.querySelectorAll('.tile.fixed').forEach(t => {
@@ -63,8 +56,7 @@ function loadGameState() {
         state.board.forEach(item => {
             const targetCell = document.querySelector(`.cell[data-index="${item.index}"]`);
             if(targetCell) {
-                const t = document.createElement('div');
-                t.className = 'tile fixed on-board';
+                const t = document.createElement('div'); t.className = 'tile fixed on-board';
                 const displayVal = item.raw === '?' ? '?' : item.v;
                 t.innerHTML = `<span>${item.l}</span><span class="val">${displayVal}</span>`;
                 t.dataset.letter = item.l; t.dataset.raw = item.raw; t.dataset.value = item.v;
@@ -74,19 +66,17 @@ function loadGameState() {
 
         const r = document.getElementById('rack');
         state.rack.forEach(item => {
-            const t = document.createElement('div');
-            t.className = 'tile';
+            const t = document.createElement('div'); t.className = 'tile';
             const displayVal = item.raw === '?' ? '?' : item.v;
             t.innerHTML = `<span>${item.l}</span><span class="val">${displayVal}</span>`;
             t.dataset.letter = item.l; t.dataset.raw = item.raw; t.dataset.value = item.v;
-            r.appendChild(t);
-            makeDraggable(t);
+            r.appendChild(t); makeDraggable(t);
         });
 
         updateClusterOutlines();
-        return true; // Successfully loaded
+        return true; 
     }
-    return false; // No save found
+    return false;
 }
 
 function updateMotion() {
@@ -287,7 +277,7 @@ function handlePlayWord() {
         updateClusterOutlines();
         setTimeout(() => {
             refillRack();
-            saveGameState(); // ⚡ AUTO-SAVE THE GAME STATE HERE
+            saveGameState();
         }, 600);
     } else {
         showFeedback(full[full.length-1], '❌ NO WORD', 'feedback-node invalid-x');
@@ -342,15 +332,44 @@ function applyLexiconTheme() {
 function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = ''; if(!board) return; for(let i=0; i<board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout && layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
 function buildUI() { if(!ui) return; const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; if(btn.action === 'shuffleRack') b.onclick = shuffleRack; if(btn.action === 'recallTiles') b.onclick = recallTiles; if(btn.action === 'toggleTheme') b.onclick = () => { currentMode = currentMode === 'dark' ? 'light' : 'dark'; applyLexiconTheme(); }; if(btn.action === 'playWord') b.onclick = handlePlayWord; if(btn.action === 'goHome') b.onclick = () => window.location.href='index.html'; ctrl.appendChild(b); }); }
 function initBag() { if(!tiles) return; tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }
+
+/* ⚡ HAND BALANCING ALGORITHM (Vowel Capping & Guarantee) */
 function refillRack() { 
-    const r = document.getElementById('rack'); let currentTiles = Array.from(r.querySelectorAll('.tile')); let needed = 7 - currentTiles.length; if (needed <= 0 || bag.length === 0) return;
-    const isVowel = (l) => ['A','E','I','O','U','?'].includes(l); let hasVowel = currentTiles.some(t => isVowel(t.dataset.raw));
+    const r = document.getElementById('rack'); 
+    let currentTiles = Array.from(r.querySelectorAll('.tile')); 
+    let needed = 7 - currentTiles.length; 
+    if (needed <= 0 || bag.length === 0) return;
+
+    const isVowel = (l) => ['A','E','I','O','U','?'].includes(l); 
+    
+    // Calculate exactly how many vowels you are holding right now
+    let vowelCount = currentTiles.filter(t => isVowel(t.dataset.raw)).length;
+    const MAX_VOWELS = 4; // ⚡ The absolute maximum vowels allowed in a 7-tile hand
+
     for (let i = 0; i < needed && bag.length > 0; i++) {
-        let data;
-        if (!hasVowel && i === needed - 1) { const vIdx = bag.findIndex(t => isVowel(t.l)); if (vIdx !== -1) { data = bag.splice(vIdx, 1)[0]; } else { data = bag.pop(); } } else { data = bag.pop(); }
-        if (isVowel(data.l)) hasVowel = true;
-        const t = document.createElement('div'); t.className = 'tile'; const displayVal = data.l === '?' ? '?' : data.v;
-        t.innerHTML = `<span>${data.l}</span><span class="val">${displayVal}</span>`; t.dataset.letter = data.l; t.dataset.raw = data.l; t.dataset.value = data.v; 
+        let data = null;
+        
+        // Rule 1: Vowel Guarantee (If you have 0 vowels and it's the last tile drawn, force a vowel)
+        if (vowelCount === 0 && i === needed - 1) { 
+            const vIdx = bag.findIndex(t => isVowel(t.l)); 
+            if (vIdx !== -1) data = bag.splice(vIdx, 1)[0]; 
+        } 
+        // Rule 2: Vowel Cap (If you have 4 or more vowels, force a consonant)
+        else if (vowelCount >= MAX_VOWELS) {
+            const cIdx = bag.findIndex(t => !isVowel(t.l));
+            if (cIdx !== -1) data = bag.splice(cIdx, 1)[0];
+        }
+
+        // Fallback: Normal random draw if limits aren't hit
+        if (!data) data = bag.pop(); 
+
+        // Update the live count if we successfully pulled a vowel
+        if (isVowel(data.l)) vowelCount++;
+
+        const t = document.createElement('div'); t.className = 'tile'; 
+        const displayVal = data.l === '?' ? '?' : data.v;
+        t.innerHTML = `<span>${data.l}</span><span class="val">${displayVal}</span>`; 
+        t.dataset.letter = data.l; t.dataset.raw = data.l; t.dataset.value = data.v; 
         r.appendChild(t); makeDraggable(t); 
     } 
 }

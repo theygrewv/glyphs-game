@@ -2,13 +2,12 @@
   "placement": {
     "logic": "strict-grid-math",
     "hitSlop": 30,
-    "snapToCenter": true,
-    "recalibrateOnStart": true
+    "snapToCenter": true
   },
   "mobility": {
     "allowBoardToBoard": true,
-    "allowReturnToRack": true,
-    "liftScale": 1.15
+    "interactiveOnBoard": true,
+    "zPriority": 1000
   },
   "constraints": {
     "requireEmpty": true,

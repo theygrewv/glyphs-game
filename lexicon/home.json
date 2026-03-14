@@ -1,0 +1,20 @@
+{
+  "branding": {
+    "title": "GLYPHS",
+    "subtitle": "LEXICON ENGINE"
+  },
+  "menu": [
+    {
+      "id": "btn-new-game",
+      "text": "NEW GAME",
+      "route": "game.html",
+      "style": "primary"
+    },
+    {
+      "id": "btn-settings",
+      "text": "SETTINGS",
+      "route": "#",
+      "style": "secondary"
+    }
+  ]
+}

@@ -121,7 +121,7 @@ function makeDraggable(el) {
     window.addEventListener('touchend', end, { passive: false });
 }
 
-/* ⚡ TOP-RIGHT LIVE SCORE PREVIEW ENGINE */
+/* ⚡ DYNAMIC DIRECTIONAL LIVE SCORE PREVIEW ENGINE */
 function updateLiveScore() {
     document.querySelectorAll('.live-score-badge').forEach(e => e.remove());
     if (!placedTiles.length) return;
@@ -162,7 +162,6 @@ function updateLiveScore() {
     const lastCellEl = document.querySelector(`.cell[data-index="${lastWordIdx}"]`);
     
     if (lastCellEl) {
-        // ⚡ MAP EXACT GRID COORDINATES SO IT DECOUPLES FROM THE CELL STACK
         const rect = lastCellEl.getBoundingClientRect();
         const gRect = document.getElementById('grid').getBoundingClientRect();
 
@@ -170,9 +169,17 @@ function updateLiveScore() {
         badge.className = 'live-score-badge';
         badge.innerText = finalScore;
         
-        // Pin it to the Top-Right, safely inside the main grid layer
+        // Always stick to the right edge
         badge.style.left = `${(rect.left - gRect.left) + rect.width - 12}px`;
-        badge.style.top = `${(rect.top - gRect.top) - 12}px`;
+        
+        // ⚡ DIRECTIONAL ANCHOR LOGIC
+        if (isH) {
+            // Horizontal -> Top Right
+            badge.style.top = `${(rect.top - gRect.top) - 12}px`;
+        } else {
+            // Vertical -> Bottom Right
+            badge.style.top = `${(rect.top - gRect.top) + rect.height - 12}px`;
+        }
         
         document.getElementById('grid').appendChild(badge);
     }
@@ -322,9 +329,7 @@ function applyLexiconTheme() {
     .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } 
     .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } 
     #total-score { color: var(--gold); } 
-    
-    /* ⚡ THE DECOUPLED BADGE (Absolute to Grid) */
-    .live-score-badge { position: absolute; background: var(--dl); color: #000; font-size: 0.65rem; font-weight: 900; padding: 2px 6px; border-radius: 6px; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.8); pointer-events: none; border: 1px solid #000; }
+    .live-score-badge { position: absolute; background: var(--dl); color: #000; font-size: 0.65rem; font-weight: 900; padding: 2px 6px; border-radius: 6px; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.8); pointer-events: none; border: 1px solid #000; transition: top 0.2s, left 0.2s; }
     `;
     document.head.appendChild(style);
 }

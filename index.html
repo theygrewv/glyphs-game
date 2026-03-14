@@ -8,16 +8,15 @@
         :root { --bg: #000; --text: #fff; }
         body { background: var(--bg); color: var(--text); margin: 0; font-family: sans-serif; height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 10px 0; -webkit-user-select: none; }
         .grid { display: grid; width: 92vw; max-width: 400px; aspect-ratio: 1/1; z-index: 5; position: relative; }
-        .cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; transition: background 0.2s; }
-        .cell.hover { background: rgba(255, 255, 255, 0.15) !important; box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.3); }
-        
+        .cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; }
         #rack { display: flex; justify-content: center; align-items: center; gap: 8px; width: 92vw; max-width: 400px; height: 80px; margin-bottom: 75px; z-index: 10; }
         .tile { width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; }
-        
         .tile.dragging { position: fixed !important; z-index: 5000; pointer-events: none; transform: scale(1.3); opacity: 0.95; }
         .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; }
         .tile.fixed { filter: brightness(0.8); pointer-events: none; }
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; opacity: 0.6; }
+        .feedback-node { position: absolute; z-index: 500; font-weight: 900; color: var(--gold); text-shadow: 0 0 10px var(--gold); font-size: 1.4rem; }
+        .invalid-x { color: #FF0000; text-shadow: 0 0 10px #FF0000; }
         .btn { background: #222; color: #fff; border: none; padding: 12px 18px; border-radius: 30px; font-weight: 900; font-size: 0.7rem; text-transform: uppercase; }
         .primary { background: #fff; color: #000; }
     </style>
@@ -29,8 +28,8 @@
     <div id="rack"></div>
 
     <script>
-        let layout, board, tiles, theme, ui, rules, playRules, drawRules, shuffleRules;
-        let dictionary = new Set(), bag = [], placedTiles = [], currentMode = 'dark';
+        let layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring;
+        let dictionary = new Set(), bag = [], placedTiles = [], totalScore = 0, currentMode = 'dark';
 
         async function startEngine() {
             try {
@@ -43,106 +42,93 @@
                     fetch('./lexicon/rules.json').then(r => r.json()),
                     fetch('./lexicon/play.json').then(r => r.json()),
                     fetch('./lexicon/draw.json').then(r => r.json()),
-                    fetch('./lexicon/shuffle.json').then(r => r.json())
+                    fetch('./lexicon/scoring.json').then(r => r.json())
                 ]);
-                [layout, board, tiles, theme, ui, rules, playRules, drawRules, shuffleRules] = res;
+                [layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring] = res;
                 currentMode = theme.active || 'dark';
                 const dText = await fetch(playRules.validation.dictionaryUrl).then(r => r.text());
                 dictionary = new Set(dText.toUpperCase().split('\n'));
                 applyLexiconTheme(); buildHeader(); buildGrid(); buildUI(); initBag(); refillRack();
-                console.log("Global Sensor Active 🤙🏽");
+                console.log("Scoring Engine Online 🤙🏽");
             } catch (e) { console.error(e); }
         }
 
-        function makeDraggable(el) {
-            let ox, oy, gridRect;
-            const start = (e) => {
-                if(el.classList.contains('fixed')) return;
-                const t = e.touches ? e.touches[0] : e;
-                const r = el.getBoundingClientRect();
-                ox = t.clientX - r.left; oy = t.clientY - r.top;
-                gridRect = document.getElementById('grid').getBoundingClientRect();
+        function handlePlayWord() {
+            document.querySelectorAll('.feedback-node').forEach(n => n.remove());
+            if(!placedTiles.length) return;
 
-                if(el.parentElement.classList.contains('cell')) {
-                    placedTiles = placedTiles.filter(p => p.el !== el);
-                    el.classList.remove('on-board');
-                }
-                el.classList.add('dragging');
-                if(e.cancelable) e.preventDefault();
-            };
+            placedTiles.sort((a,b) => a.index - b.index);
+            const isH = Math.floor(placedTiles[0].index / board.cols) === Math.floor(placedTiles[placedTiles.length-1].index / board.cols);
+            const step = isH ? 1 : board.cols;
 
-            const move = (e) => {
-                if(!el.classList.contains('dragging')) return;
-                const t = e.touches ? e.touches[0] : e;
-                el.style.left = `${t.clientX - ox}px`;
-                el.style.top = `${t.clientY - oy}px`;
+            let fullIndices = [], current = placedTiles[0].index;
+            while(current >= 0 && getTileAt(current - step)) current -= step;
+            while(current < board.size && getTileAt(current)) { fullIndices.push(current); current += step; }
 
-                // Visual Hover Feedback
-                document.querySelectorAll('.cell.hover').forEach(c => c.classList.remove('hover'));
-                const targetIdx = calculateGridIndex(t.clientX, t.clientY, gridRect);
-                if(targetIdx !== null) {
-                    const targetCell = document.querySelector(`.cell[data-index="${targetIdx}"]`);
-                    if(targetCell && !targetCell.querySelector('.tile')) targetCell.classList.add('hover');
-                }
-            };
+            const word = fullIndices.map(idx => getTileAt(idx).dataset.letter).join('');
 
-            const end = (e) => {
-                if(!el.classList.contains('dragging')) return;
-                el.classList.remove('dragging');
-                document.querySelectorAll('.cell.hover').forEach(c => c.classList.remove('hover'));
-                
-                const t = e.changedTouches ? e.changedTouches[0] : e;
-                const targetIdx = calculateGridIndex(t.clientX, t.clientY, gridRect);
+            if(dictionary.has(word)) {
+                let wordTotal = 0;
+                let wordMultiplier = 1;
 
-                if (targetIdx !== null) {
-                    const target = document.querySelector(`.cell[data-index="${targetIdx}"]`);
-                    if (target && !target.querySelector('.tile')) {
-                        target.appendChild(el);
-                        el.classList.add('on-board');
-                        el.style.left = '0'; el.style.top = '0'; el.style.position = 'absolute';
-                        placedTiles.push({el, index: targetIdx});
-                        return;
+                // 1. Calculate Score based on Scoring Lexicon
+                fullIndices.forEach(idx => {
+                    const tileVal = parseInt(getTileAt(idx).dataset.value);
+                    const bonusType = layout[idx] ? layout[idx].c : null;
+                    const bonus = scoring.multipliers[bonusType];
+
+                    if (bonus && bonus.type === "letter") {
+                        wordTotal += (tileVal * bonus.value);
+                    } else {
+                        wordTotal += tileVal;
                     }
-                }
+
+                    if (bonus && bonus.type === "word") {
+                        wordMultiplier *= bonus.value;
+                    }
+                });
+
+                let finalScore = (wordTotal * wordMultiplier);
                 
-                document.getElementById('rack').appendChild(el);
-                el.style.left = 'auto'; el.style.top = 'auto'; el.style.position = 'relative';
-            };
-
-            function calculateGridIndex(x, y, g) {
-                const slop = rules.placement.hitSlop || 30;
-                if (x >= (g.left - slop) && x <= (g.right + slop) &&
-                    y >= (g.top - slop) && y <= (g.bottom + slop)) {
-                    const col = Math.floor((x - g.left) / (g.width / board.cols));
-                    const row = Math.floor((y - g.top) / (g.height / (board.size / board.cols)));
-                    const idx = (row * board.cols) + col;
-                    return (idx >= 0 && idx < board.size) ? idx : null;
+                // Add Bingo Bonus
+                if (placedTiles.length >= scoring.bonuses.bingoThreshold) {
+                    finalScore += scoring.bonuses.bingo;
                 }
-                return null;
+
+                showFeedback(fullIndices[fullIndices.length-1], `+${finalScore}`, 'feedback-node');
+                totalScore += finalScore;
+                document.getElementById('total-score').innerText = totalScore.toString().padStart(3, '0');
+                
+                placedTiles.forEach(p => p.el.classList.add('fixed'));
+                placedTiles = [];
+                setTimeout(refillRack, 600);
+            } else {
+                showFeedback(fullIndices[fullIndices.length-1], '❌', 'feedback-node invalid-x');
             }
-
-            el.addEventListener('touchstart', start, { passive: false });
-            window.addEventListener('touchmove', move, { passive: false });
-            window.addEventListener('touchend', end, { passive: false });
         }
 
-        /* --- THEME, UI, GRID --- */
-        function applyLexiconTheme() {
-            const m = theme.modes[currentMode];
-            const root = document.documentElement.style;
-            Object.keys(m.colors).forEach(k => root.setProperty(`--${k}`, m.colors[k]));
-            const style = document.getElementById('lexicon-styles') || document.createElement("style");
-            style.id = 'lexicon-styles';
-            style.innerText = `.grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap}; border: 1px solid var(--gridLine); } .cell { background: var(--obsidian); backdrop-filter: blur(${m.effects.blur}); -webkit-backdrop-filter: blur(${m.effects.blur}); box-shadow: ${m.effects.bevel}; } .dl { color: var(--dl); box-shadow: inset 0 0 ${m.effects.glow} var(--dl); } .tl { color: var(--tl); box-shadow: inset 0 0 ${m.effects.glow} var(--tl); } .dw { color: var(--dw); box-shadow: inset 0 0 ${m.effects.glow} var(--dw); } .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } #total-score { color: var(--gold); }`;
-            document.head.appendChild(style);
+        function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
+        function showFeedback(index, text, className) {
+            const cell = document.querySelector(`.cell[data-index="${index}"]`);
+            const rect = cell.getBoundingClientRect();
+            const gridRect = document.getElementById('grid').getBoundingClientRect();
+            const node = document.createElement('div');
+            node.className = className;
+            node.innerText = text;
+            node.style.left = `${(rect.right - gridRect.left) - 10}px`;
+            node.style.top = `${(rect.top - gridRect.top) - 15}px`;
+            document.getElementById('grid').appendChild(node);
         }
+
+        /* --- THEME, UI, DRAG, & GRID (DATA-DRIVEN) --- */
+        function applyLexiconTheme() { const m = theme.modes[currentMode]; const root = document.documentElement.style; Object.keys(m.colors).forEach(k => root.setProperty(`--${k}`, m.colors[k])); const style = document.getElementById('lexicon-styles') || document.createElement("style"); style.id = 'lexicon-styles'; style.innerText = `.grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap}; border: 1px solid var(--gridLine); } .cell { background: var(--obsidian); backdrop-filter: blur(${m.effects.blur}); -webkit-backdrop-filter: blur(${m.effects.blur}); box-shadow: ${m.effects.bevel}; } .dl { color: var(--dl); box-shadow: inset 0 0 ${m.effects.glow} var(--dl); } .tl { color: var(--tl); box-shadow: inset 0 0 ${m.effects.glow} var(--tl); } .dw { color: var(--dw); box-shadow: inset 0 0 ${m.effects.glow} var(--dw); } .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } #total-score { color: var(--gold); }`; document.head.appendChild(style); }
         function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = ''; for(let i=0; i<board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
         function buildUI() { const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; if(btn.action === 'toggleTheme') b.onclick = () => { currentMode = currentMode === 'dark' ? 'light' : 'dark'; applyLexiconTheme(); }; if(btn.action === 'recall') b.onclick = () => location.reload(); if(btn.action === 'play') b.onclick = handlePlayWord; ctrl.appendChild(b); }); }
         function initBag() { tiles.distribution.forEach(d => { for(let i=0; i<d.q; i++) bag.push({...d}); }); bag.sort(() => Math.random() - 0.5); }
         function refillRack() { const r = document.getElementById('rack'); const cur = r.querySelectorAll('.tile').length; for(let i=0; i<(7-cur) && bag.length; i++) { const data = bag.pop(); const t = document.createElement('div'); t.className = 'tile'; t.innerHTML = `<span>${data.l}</span><span class="val">${data.v}</span>`; t.dataset.letter = data.l; t.dataset.value = data.v; r.appendChild(t); makeDraggable(t); } }
         function buildHeader() { document.getElementById('game-header').innerHTML = `<div id="total-score" style="font-size: 2.2rem; font-weight: 900; color:var(--gold)">000</div>`; }
-        function handlePlayWord() { if(!placedTiles.length) return; placedTiles.sort((a,b)=>a.index-b.index); const isH = Math.floor(placedTiles[0].index/board.cols) === Math.floor(placedTiles[placedTiles.length-1].index/board.cols); const step = isH ? 1 : board.cols; let full = [], curr = placedTiles[0].index; while(curr >= 0 && getTileAt(curr-step)) curr -= step; while(curr < board.size && getTileAt(curr)) { full.push(curr); curr += step; } const word = full.map(idx => getTileAt(idx).dataset.letter).join(''); if(dictionary.has(word)) { placedTiles.forEach(p => p.el.classList.add('fixed')); placedTiles = []; refillRack(); } }
-        function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
+        function makeDraggable(el) { let ox, oy, gridRect; const start = (e) => { if(el.classList.contains('fixed')) return; const t = e.touches ? e.touches[0] : e; const r = el.getBoundingClientRect(); ox = t.clientX - r.left; oy = t.clientY - r.top; gridRect = document.getElementById('grid').getBoundingClientRect(); if(el.parentElement.classList.contains('cell')) { placedTiles = placedTiles.filter(p => p.el !== el); el.classList.remove('on-board'); } el.classList.add('dragging'); if(e.cancelable) e.preventDefault(); }; const move = (e) => { if(!el.classList.contains('dragging')) return; const t = e.touches ? e.touches[0] : e; el.style.left = `${t.clientX - ox}px`; el.style.top = `${t.clientY - oy}px`; if(e.cancelable) e.preventDefault(); }; const end = (e) => { if(!el.classList.contains('dragging')) return; el.classList.remove('dragging'); const r = el.getBoundingClientRect(); const cx = r.left + r.width/2; const cy = r.top + r.height/2; const slop = 25; if (cx >= (gridRect.left - slop) && cx <= (gridRect.right + slop) && cy >= (gridRect.top - slop) && cy <= (gridRect.bottom + slop)) { const col = Math.floor((cx - gridRect.left) / (gridRect.width / board.cols)); const row = Math.floor((cy - gridRect.top) / (gridRect.height / (board.size / board.cols))); const idx = (row * board.cols) + col; const target = document.querySelector(`.cell[data-index="${idx}"]`); if (target && !target.querySelector('.tile')) { target.appendChild(el); el.classList.add('on-board'); el.style.left = '0'; el.style.top = '0'; el.style.position = 'absolute'; placedTiles.push({el, index: idx}); return; } } document.getElementById('rack').appendChild(el); el.style.left = 'auto'; el.style.top = 'auto'; el.style.position = 'relative'; }; el.addEventListener('touchstart', start, { passive: false }); window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', end, { passive: false }); }
+
         startEngine();
     </script>
 </body>

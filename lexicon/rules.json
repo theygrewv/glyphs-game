@@ -5,13 +5,14 @@
     "snapToCenter": true
   },
   "visuals": {
-    "dragScale": 1.25,
-    "hoverScale": 1.4,
-    "lerpAmount": 0.2,
-    "liftZ": 999999
+    "dragScale": 1.3,
+    "hoverScale": 1.45,
+    "liftZ": 999999,
+    "pressAnimation": "pop"
   },
   "mobility": {
     "allowBoardToBoard": true,
-    "interactiveOnBoard": true
+    "enforceTopLayer": true,
+    "liftOnTouch": true
   }
 }

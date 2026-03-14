@@ -1,13 +1,12 @@
 {
   "placement": {
-    "logic": "force-algebraic",
-    "hitSlop": 20,
-    "recalibrateOnDrop": true,
-    "snapBuffer": 0.5
+    "logic": "precision-grid",
+    "manualCalibration": true,
+    "snapToCenter": true,
+    "hitSlop": 25
   },
   "constraints": {
-    "allowOverlap": false,
     "requireEmpty": true,
-    "snapToCenter": true
+    "allowOverlap": false
   }
 }

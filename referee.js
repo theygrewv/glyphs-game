@@ -1,37 +1,51 @@
 /* ⚖️ ENGINE v1 - REFEREE MODULE */
-function validatePlacement() {
-    if (!placedTiles.length) return false;
-    const r0 = Math.floor(placedTiles[0].index / board.cols);
-    const c0 = placedTiles[0].index % board.cols;
-    const sameRow = placedTiles.every(p => Math.floor(p.index / board.cols) === r0);
-    const sameCol = placedTiles.every(p => p.index % board.cols === c0);
-    if (!sameRow && !sameCol) return false;
-    placedTiles.sort((a,b) => a.index - b.index);
-    const step = sameRow ? 1 : board.cols;
-    for (let i = placedTiles[0].index; i <= placedTiles[placedTiles.length-1].index; i += step) {
-        if (!getTileAt(i)) return false;
-    }
-    const hasFixed = document.querySelector('.tile.fixed');
-    if (!hasFixed) return placedTiles.some(p => p.index === (rules.validation.centerIndex || 112));
-    return placedTiles.some(p => {
-        return [p.index-1, p.index+1, p.index-board.cols, p.index+board.cols].some(a => getTileAt(a)?.classList.contains('fixed'));
-    });
-}
 
-function calculateScore(tilesInWord) {
-    let total = 0, mult = 1;
-    tilesInWord.forEach(idx => {
-        const tile = getTileAt(idx);
-        const v = parseInt(tile.dataset.value) || 0;
-        const isNew = placedTiles.find(p => p.index === idx);
-        const bonus = (isNew && layout[idx]) ? scoring.multipliers[layout[idx].c] : null;
-        if (bonus?.type === "letter") total += (v * bonus.value);
-        else total += v;
-        if (bonus?.type === "word") mult *= bonus.value;
+function validatePlacement() {
+    // 1. Check if any tiles were actually moved
+    if (!placedTiles || placedTiles.length === 0) return false;
+
+    // 2. Get the indices of the tiles currently being played
+    const indices = placedTiles.map(p => parseInt(p.index));
+    
+    // 3. Simple Alignment Check: Are they all in the same row or same column?
+    const r0 = Math.floor(indices[0] / board.cols);
+    const c0 = indices[0] % board.cols;
+    
+    const sameRow = indices.every(idx => Math.floor(idx / board.cols) === r0);
+    const sameCol = indices.every(idx => idx % board.cols === c0);
+
+    if (!sameRow && !sameCol) {
+        console.log("Referee: Tiles not aligned in row or column");
+        return false;
+    }
+
+    // 4. First Move Check: Does one tile hit the center? (Index 112 for 15x15)
+    const hasFixed = document.querySelector('.tile.fixed');
+    if (!hasFixed) {
+        const centerIndex = 112; 
+        const hitsCenter = indices.includes(centerIndex);
+        if (!hitsCenter) {
+            console.log("Referee: First move must touch the center star!");
+            return false;
+        }
+        return true; // First move is valid if aligned and on center
+    }
+
+    // 5. Connection Check: Is it touching an existing (fixed) tile?
+    const isTouching = indices.some(idx => {
+        const neighbors = [idx-1, idx+1, idx-board.cols, idx+board.cols];
+        return neighbors.some(n => {
+            const neighborTile = document.querySelector(`.cell[data-index="${n}"] .tile.fixed`);
+            return neighborTile !== null;
+        });
     });
-    let final = total * mult;
-    if (placedTiles.length >= 7) final += 50; 
-    return final;
+
+    if (!isTouching) {
+        console.log("Referee: Word must connect to existing tiles");
+        return false;
+    }
+
+    return true;
 }
 
 function checkWordInDictionary(word) {

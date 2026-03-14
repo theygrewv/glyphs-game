@@ -3,29 +3,9 @@
   "modes": {
     "dark": {
       "colors": {
-        "bg": "#050505",
-        "text": "#ffffff",
-        "gridLine": "rgba(255, 255, 255, 0.15)",
-        "gold": "#FFFF00",
-        "obsidian": "rgba(20, 20, 20, 0.85)",
-        "dl": "#00FFFF", "tl": "#7851A9", "dw": "#FF8C00", "tw": "#E0115F", "dd": "#FFFF00"
+        "bg": "#050505", "text": "#ffffff", "gridLine": "rgba(255,255,255,0.1)", "gold": "#D4AF37", "obsidian": "rgba(20,20,20,0.8)"
       },
-      "effects": { "blur": "12px", "glow": "12px", "bevel": "none" }
-    },
-    "light": {
-      "colors": {
-        "bg": "#E0E0E0",
-        "text": "#1a1a1a",
-        "gridLine": "rgba(0, 0, 0, 0.1)",
-        "gold": "#D4AF37",
-        "obsidian": "rgba(255, 255, 240, 0.9)",
-        "dl": "#008B8B", "tl": "#4B0082", "dw": "#D2691E", "tw": "#B22222", "dd": "#B8860B"
-      },
-      "effects": { 
-        "blur": "8px", 
-        "glow": "4px", 
-        "bevel": "inset 2px 2px 4px rgba(255,255,255,0.8), inset -2px -2px 4px rgba(0,0,0,0.2)" 
-      }
+      "effects": { "blur": "12px", "glow": "10px", "bevel": "none" }
     }
   }
 }

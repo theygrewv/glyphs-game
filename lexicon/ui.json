@@ -1,11 +1,8 @@
 {
-  "header": {
-    "scoreLabel": "000",
-    "pbPrefix": "PB:"
-  },
+  "header": { "scoreLabel": "000", "pbPrefix": "PB:" },
   "buttons": [
+    {"id": "mode-toggle", "text": "🌓", "class": "btn toggle-btn", "action": "toggleTheme"},
     {"id": "recall-btn", "text": "Recall", "class": "btn", "action": "recall"},
-    {"id": "shuffle-btn", "text": "Shuffle", "class": "btn", "action": "shuffle"},
     {"id": "play-btn", "text": "Play Word", "class": "btn primary", "action": "play"}
   ]
 }

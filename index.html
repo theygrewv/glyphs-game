@@ -7,29 +7,25 @@
     <style id="dynamic-styles">
         :root { --bg: #000; --text: #fff; }
         body { background: var(--bg); color: var(--text); margin: 0; font-family: sans-serif; height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 10px 0; -webkit-user-select: none; }
+        
         .grid { display: grid; width: 92vw; max-width: 400px; aspect-ratio: 1/1; z-index: 5; position: relative; }
         .cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; }
         .cell.hover { background: rgba(255, 255, 255, 0.2) !important; }
+        
         #rack { display: flex; justify-content: center; align-items: center; gap: 8px; width: 92vw; max-width: 400px; height: 80px; margin-bottom: 75px; z-index: 10; }
         
         .tile { 
             width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; 
             display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.4); position: relative; 
-            pointer-events: auto !important; z-index: 100;
+            /* Force tiles to always be the touch target */
+            pointer-events: auto !important; touch-action: none; z-index: 100;
         }
         
-        /* The "Sky Layer" - Guaranteed to be above everything */
-        .tile.dragging { 
-            position: fixed !important; 
-            z-index: 1000000 !important; 
-            pointer-events: none; 
-            opacity: 0.98; 
-            box-shadow: 0 15px 30px rgba(0,0,0,0.6);
-        }
-        
-        .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; z-index: 200; }
+        .tile.dragging { position: fixed !important; z-index: 1000000 !important; pointer-events: none; opacity: 0.98; }
+        .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; z-index: 500 !important; }
         .tile.fixed { filter: brightness(0.8); pointer-events: none !important; }
+        
         .val { position: absolute; bottom: 2px; right: 4px; font-size: 8px; opacity: 0.6; }
         .btn { background: #222; color: #fff; border: none; padding: 12px 18px; border-radius: 30px; font-weight: 900; font-size: 0.7rem; text-transform: uppercase; }
         .primary { background: #fff; color: #000; }
@@ -42,7 +38,7 @@
     <div id="rack"></div>
 
     <script>
-        let layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring, shuffleRules;
+        let layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring;
         let dictionary = new Set(), bag = [], placedTiles = [], totalScore = 0, currentMode = 'dark';
         let activeTile = null, targetX = 0, targetY = 0, currentX = 0, currentY = 0;
 
@@ -57,10 +53,9 @@
                     fetch('./lexicon/rules.json').then(r => r.json()),
                     fetch('./lexicon/play.json').then(r => r.json()),
                     fetch('./lexicon/draw.json').then(r => r.json()),
-                    fetch('./lexicon/scoring.json').then(r => r.json()),
-                    fetch('./lexicon/shuffle.json').then(r => r.json())
+                    fetch('./lexicon/scoring.json').then(r => r.json())
                 ]);
-                [layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring, shuffleRules] = res;
+                [layout, board, tiles, theme, ui, rules, playRules, drawRules, scoring] = res;
                 currentMode = theme.active || 'dark';
                 const dText = await fetch(playRules.validation.dictionaryUrl).then(r => r.text());
                 dictionary = new Set(dText.toUpperCase().split('\n'));
@@ -91,7 +86,6 @@
                 oy = touch.clientY - r.top;
                 gRect = document.getElementById('grid').getBoundingClientRect();
 
-                // Pick-Up Fix: If on board, remove from board logic
                 if(el.parentElement.classList.contains('cell')) {
                     placedTiles = placedTiles.filter(p => p.el !== el);
                     el.classList.remove('on-board');
@@ -99,7 +93,6 @@
                 }
                 
                 activeTile = el;
-                // Force to Body to break stacking context
                 document.body.appendChild(el);
                 
                 currentX = touch.clientX - ox;
@@ -118,7 +111,7 @@
                 targetX = touch.clientX - ox;
                 targetY = touch.clientY - oy;
 
-                // Visual Hover Feedback
+                // Hover Highlight
                 document.querySelectorAll('.cell.hover').forEach(c => c.classList.remove('hover'));
                 const cx = touch.clientX; const cy = touch.clientY;
                 const col = Math.floor((cx - gRect.left) / (gRect.width / board.cols));
@@ -136,7 +129,7 @@
                 activeTile = null;
                 
                 const touch = e.changedTouches ? e.changedTouches[0] : e;
-                const slop = rules.placement.hitSlop || 35;
+                const slop = rules.placement.hitSlop || 40;
 
                 if (touch.clientX >= (gRect.left - slop) && touch.clientX <= (gRect.right + slop) &&
                     touch.clientY >= (gRect.top - slop) && touch.clientY <= (gRect.bottom + slop)) {
@@ -168,7 +161,7 @@
             window.addEventListener('touchend', end, { passive: false });
         }
 
-        /* --- THEME, UI, & GRID (REMAIN DATA-DRIVEN) --- */
+        /* --- THEME, UI, & GRID (DATA-DRIVEN) --- */
         function applyLexiconTheme() { if (!theme || !theme.modes[currentMode]) return; const m = theme.modes[currentMode]; const root = document.documentElement.style; Object.keys(m.colors).forEach(k => root.setProperty(`--${k}`, m.colors[k])); const style = document.getElementById('lexicon-styles') || document.createElement("style"); style.id = 'lexicon-styles'; style.innerText = `.grid { grid-template-columns: repeat(${board.cols}, 1fr); grid-auto-rows: 1fr; gap: ${board.gap}; border: 1px solid var(--gridLine); } .cell { background: var(--obsidian); backdrop-filter: blur(${m.effects.blur}); -webkit-backdrop-filter: blur(${m.effects.blur}); box-shadow: ${m.effects.bevel}; } .dl { color: var(--dl); box-shadow: inset 0 0 ${m.effects.glow} var(--dl); } .tl { color: var(--tl); box-shadow: inset 0 0 ${m.effects.glow} var(--tl); } .dw { color: var(--dw); box-shadow: inset 0 0 ${m.effects.glow} var(--dw); } .tw { color: var(--tw); box-shadow: inset 0 0 ${m.effects.glow} var(--tw); } .dd { color: var(--dd); box-shadow: inset 0 0 ${m.effects.glow} var(--dd); } #total-score { color: var(--gold); }`; document.head.appendChild(style); }
         function buildGrid() { const g = document.getElementById('grid'); g.innerHTML = ''; for(let i=0; i<board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
         function buildUI() { const ctrl = document.getElementById('ui-controls'); ctrl.innerHTML = ''; ui.buttons.forEach(btn => { const b = document.createElement('button'); b.className = btn.class; b.innerText = btn.text; if(btn.action === 'toggleTheme') b.onclick = () => { currentMode = currentMode === 'dark' ? 'light' : 'dark'; applyLexiconTheme(); }; if(btn.action === 'recall') b.onclick = () => location.reload(); if(btn.action === 'play') b.onclick = handlePlayWord; ctrl.appendChild(b); }); }

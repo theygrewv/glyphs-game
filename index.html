@@ -61,7 +61,8 @@
                     const btn = document.createElement('button');
                     btn.className = `menu-btn ${item.style}`;
                     btn.innerText = item.text;
-                    btn.onclick = () => window.location.href = item.route === '#' ? '#' : item.route;
+                    // ⚡ PASS ID=NEW FOR NEW GAMES
+                    btn.onclick = () => window.location.href = item.route === '#' ? '#' : item.route + '?id=new';
                     menuContainer.appendChild(btn);
                 });
 
@@ -71,10 +72,10 @@
                 savesData.sessions.forEach(session => {
                     const card = document.createElement('div');
                     card.className = 'save-card';
-                    card.onclick = () => window.location.href = 'game.html'; // Tapping a card loads the game
+                    // ⚡ PASS SESSION ID FOR SAVED GAMES
+                    card.onclick = () => window.location.href = `game.html?id=${session.id}`;
 
                     const statusClass = session.isActive ? 'status-active' : 'status-wait';
-                    
                     card.innerHTML = `
                         <div class="save-info">
                             <div class="save-opp">${session.opponent}</div>

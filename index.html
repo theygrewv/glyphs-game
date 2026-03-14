@@ -6,26 +6,37 @@
     <title>Glyphs: Lexicon Engine</title>
     <style id="dynamic-styles">
         :root { --bg: #000; }
-        body { background: var(--bg); color: #fff; margin: 0; font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; touch-action: none; padding: 20px 0; -webkit-user-select: none; }
+        /* Using dvh (Dynamic Viewport Height) to prevent bottom cutoff */
+        body { 
+            background: var(--bg); color: #fff; margin: 0; font-family: sans-serif; 
+            height: 100dvh; display: flex; flex-direction: column; 
+            align-items: center; justify-content: space-between; 
+            overflow: hidden; touch-action: none; padding: 10px 0;
+            -webkit-user-select: none;
+        }
         
-        .grid { display: grid; width: 92vw; max-width: 400px; aspect-ratio: 1/1; pointer-events: none; z-index: 5; position: relative; }
+        .grid { 
+            display: grid; width: 92vw; max-width: 400px; aspect-ratio: 1/1; 
+            z-index: 5; position: relative; pointer-events: auto;
+        }
         .cell { display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; pointer-events: auto; }
         
-        /* Fixed Rack Width to prevent edge-bleeding */
         #rack { 
             display: flex; justify-content: center; align-items: center; 
-            gap: 8px; width: 90vw; max-width: 400px; height: 80px; 
-            margin: 0 auto; padding-bottom: 20px; z-index: 10;
+            gap: 10px; width: 92vw; max-width: 400px; height: 80px; 
+            /* Push the rack up from the bottom edge */
+            margin-bottom: var(--rackBottom, 50px); 
+            z-index: 10;
         }
 
         .tile { 
-            width: 42px; height: 42px; background: #fff; color: #000; border-radius: 6px; 
+            width: 44px; height: 44px; background: #fff; color: #000; border-radius: 6px; 
             display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.5); touch-action: none; position: relative;
-            flex-shrink: 0; transition: transform 0.1s;
+            flex-shrink: 0; 
         }
         
-        /* Dragging: Must be Fixed to escape the Rack container */
+        /* Dragging: Must have pointer-events: none to allow elementFromPoint to work */
         .tile.dragging { position: fixed !important; z-index: 5000; pointer-events: none; transform: scale(1.3); opacity: 0.9; }
         .tile.on-board { position: absolute; width: 100%; height: 100%; border-radius: 0; left: 0 !important; top: 0 !important; }
         .tile.fixed { filter: brightness(0.8); pointer-events: none; }
@@ -61,15 +72,19 @@
                 layout = l; board = b; tiles = t; theme = th; ui = u; rules = r; playRules = p; drawRules = d;
                 const dText = await fetch(playRules.validation.dictionaryUrl).then(r => r.text());
                 dictionary = new Set(dText.toUpperCase().split('\n'));
+                
+                // Inject Lexicon Bottom Offset
+                document.documentElement.style.setProperty('--rackBottom', drawRules.layout.bottomPadding);
+                
                 applyLexiconTheme(); buildHeader(); buildGrid(); buildUI(); initBag(); refillRack();
+                console.log("High-Clearance Engine Active 🤙🏽");
             } catch (e) { console.error(e); }
         }
 
         function refillRack() {
             const rack = document.getElementById('rack');
-            const currentInHand = rack.querySelectorAll('.tile').length;
-            const needed = drawRules.mechanics.maxHandSize - currentInHand;
-
+            const currentCount = rack.querySelectorAll('.tile').length;
+            const needed = drawRules.mechanics.maxHandSize - currentCount;
             for (let i = 0; i < needed && bag.length; i++) {
                 setTimeout(() => {
                     const data = bag.pop();
@@ -89,18 +104,12 @@
                 if(el.classList.contains('fixed')) return;
                 const t = e.touches ? e.touches[0] : e;
                 const r = el.getBoundingClientRect();
-                
-                // Calculate grab offset relative to the tile's current screen position
                 ox = t.clientX - r.left; oy = t.clientY - r.top;
-                
-                // If on board, un-register it
                 if(el.parentElement.classList.contains('cell')) {
                     placedTiles = placedTiles.filter(p => p.el !== el);
                     el.classList.remove('on-board');
                 }
-                
                 el.classList.add('dragging');
-                // Move style directly to avoid flexbox snapping while moving
                 el.style.left = `${t.clientX - ox}px`;
                 el.style.top = `${t.clientY - oy}px`;
                 if(e.cancelable) e.preventDefault();
@@ -117,12 +126,10 @@
             const end = (e) => {
                 if(!el.classList.contains('dragging')) return;
                 el.classList.remove('dragging');
-                
                 const r = el.getBoundingClientRect();
-                el.style.visibility = 'hidden';
+                // Hit detection at center point
                 const hit = document.elementFromPoint(r.left + r.width/2, r.top + r.height/2);
                 const target = hit?.closest('.cell');
-                el.style.visibility = 'visible';
 
                 if(target && !target.querySelector('.tile')) {
                     target.appendChild(el);
@@ -130,7 +137,6 @@
                     el.style.left = '0'; el.style.top = '0';
                     placedTiles.push({el, index: parseInt(target.dataset.index)});
                 } else {
-                    // Return to the Rack's flex flow
                     document.getElementById('rack').appendChild(el);
                     el.style.left = 'auto'; el.style.top = 'auto'; el.style.position = 'relative';
                 }
@@ -141,7 +147,6 @@
             window.addEventListener('touchend', end, { passive: false });
         }
 
-        /* --- UI & SCORING REMAIN DATA-DRIVEN --- */
         function handlePlayWord() {
             document.querySelectorAll('.feedback-node').forEach(n => n.remove());
             if(!placedTiles.length) return;
@@ -165,6 +170,7 @@
                 showFeedback(fullIndices[fullIndices.length-1], '❌', 'invalid-x');
             }
         }
+
         function getTileAt(index) { return document.querySelector(`.cell[data-index="${index}"] .tile`); }
         function buildGrid() { const g = document.getElementById('grid'); for(let i=0; i < board.size; i++) { const c = document.createElement('div'); c.className = 'cell'; c.dataset.index = i; if(layout[i]) { c.innerText = layout[i].t; c.classList.add(layout[i].c); } g.appendChild(c); } }
         function buildHeader() { document.getElementById('game-header').innerHTML = `<div id="total-score" style="font-size: 2.2rem; font-weight: 900; color:var(--gold)">000</div>`; }

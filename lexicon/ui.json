@@ -1,6 +1,7 @@
 {
   "buttons": [
     { "text": "◀", "class": "btn", "action": "goHome" },
+    { "text": "PASS", "class": "btn", "action": "passTurn" },
     { "text": "RECALL", "class": "btn", "action": "recallTiles" },
     { "text": "SHUFFLE", "class": "btn", "action": "shuffleRack" },
     { "text": "MODE", "class": "btn", "action": "toggleTheme" },

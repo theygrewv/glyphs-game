@@ -42,7 +42,7 @@ async function startEngine() {
 
 /* ⚡ GAME STATE PERSISTENCE */
 function saveGameState() {
-    const state = { score: totalScore, bag: bag, board: [], rack: [] };
+    const state = { id: gameId, score: totalScore, bag: bag, board: [], rack: [], opponent: 'Solo Session', status: 'IN PROGRESS', updatedAt: Date.now() };
     document.querySelectorAll('.tile.fixed').forEach(t => {
         state.board.push({ index: parseInt(t.parentElement.dataset.index), l: t.dataset.letter, v: t.dataset.value, raw: t.dataset.raw });
     });

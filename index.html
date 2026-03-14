@@ -25,8 +25,8 @@
         .save-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
         .save-status { font-size: 0.6rem; font-weight: 900; padding: 4px 8px; border-radius: 6px; letter-spacing: 1px; }
         .status-active { background: var(--gold); color: #000; box-shadow: 0 0 10px rgba(212, 175, 55, 0.3); }
-        .status-wait { background: #222; color: #888; border: 1px solid #444; }
         .save-score { font-family: monospace; font-size: 1rem; color: #ddd; font-weight: bold; }
+        .empty-state { text-align: center; padding: 20px; color: #666; font-size: 0.8rem; font-weight: 700; border: 1px dashed #333; border-radius: 10px; }
 
         @keyframes fadeUp { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
     </style>
@@ -45,6 +45,7 @@
     <script>
         async function buildHome() {
             try {
+                // Load UI text from Lexicons
                 const [homeRes, savesRes] = await Promise.all([
                     fetch('./lexicon/home.json'),
                     fetch('./lexicon/saves.json')
@@ -55,13 +56,13 @@
                 document.getElementById('home-title').innerText = homeData.branding.title;
                 document.getElementById('home-subtitle').innerText = homeData.branding.subtitle;
 
+                // Build Top Menu
                 const menuContainer = document.getElementById('menu-container');
                 menuContainer.innerHTML = '';
                 homeData.menu.forEach(item => {
                     const btn = document.createElement('button');
                     btn.className = `menu-btn ${item.style}`;
                     btn.innerText = item.text;
-                    // ⚡ PASS ID=NEW FOR NEW GAMES
                     btn.onclick = () => window.location.href = item.route === '#' ? '#' : item.route + '?id=new';
                     menuContainer.appendChild(btn);
                 });
@@ -69,21 +70,42 @@
                 document.getElementById('saves-title').innerText = savesData.listTitle;
                 const savesList = document.getElementById('saves-list');
                 savesList.innerHTML = '';
-                savesData.sessions.forEach(session => {
+
+                // ⚡ THE FIX: Pull actual games from LocalStorage
+                let localGames = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key.startsWith('glyphs_save_')) {
+                        try { localGames.push(JSON.parse(localStorage.getItem(key))); } catch(e) {}
+                    }
+                }
+
+                // Sort by most recently played
+                localGames.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+                if (localGames.length === 0) {
+                    savesList.innerHTML = `<div class="empty-state">NO ACTIVE SESSIONS<br><br>Tap NEW GAME to start.</div>`;
+                    return;
+                }
+
+                localGames.forEach(session => {
                     const card = document.createElement('div');
                     card.className = 'save-card';
-                    // ⚡ PASS SESSION ID FOR SAVED GAMES
                     card.onclick = () => window.location.href = `game.html?id=${session.id}`;
 
-                    const statusClass = session.isActive ? 'status-active' : 'status-wait';
+                    // Calculate time ago
+                    const diff = Date.now() - (session.updatedAt || Date.now());
+                    const mins = Math.floor(diff / 60000);
+                    const timeStr = mins < 1 ? 'JUST NOW' : (mins < 60 ? `${mins}M AGO` : `${Math.floor(mins/60)}H AGO`);
+
                     card.innerHTML = `
                         <div class="save-info">
-                            <div class="save-opp">${session.opponent}</div>
-                            <div class="save-time">${session.time}</div>
+                            <div class="save-opp">${session.opponent || 'Solo Session'}</div>
+                            <div class="save-time">${timeStr}</div>
                         </div>
                         <div class="save-meta">
-                            <div class="save-status ${statusClass}">${session.status}</div>
-                            <div class="save-score">${session.score}</div>
+                            <div class="save-status status-active">${session.status || 'IN PROGRESS'}</div>
+                            <div class="save-score">${session.score || 0} PTS</div>
                         </div>
                     `;
                     savesList.appendChild(card);

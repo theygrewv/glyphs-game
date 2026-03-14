@@ -1,0 +1,18 @@
+{
+  "multipliers": {
+    "dl": {"type": "letter", "value": 2},
+    "tl": {"type": "letter", "value": 3},
+    "dw": {"type": "word", "value": 2},
+    "tw": {"type": "word", "value": 3},
+    "dd": {"type": "word", "value": 4}
+  },
+  "bonuses": {
+    "bingo": 50,
+    "bingoThreshold": 7
+  },
+  "formatting": {
+    "prefix": "+",
+    "suffix": "",
+    "precision": 0
+  }
+}

@@ -1,11 +1,13 @@
 {
   "placement": {
     "logic": "grid-math",
-    "playableClass": "cell",
-    "snapToCenter": true
+    "hitSlop": 15,
+    "snapBuffer": 0.2,
+    "enforcePlayableOnly": true
   },
   "constraints": {
     "allowOverlap": false,
-    "requireEmpty": true
+    "requireEmpty": true,
+    "snapToCenter": true
   }
 }
